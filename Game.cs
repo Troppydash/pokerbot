@@ -252,7 +252,6 @@ public static class HandResolver
                     FullHouse + frequencyRank[3].Last() * Card.NumberRanks + frequencyRank[2].Last());
             }
 
-
             // flush
             if (isFlush)
             {
@@ -366,6 +365,11 @@ public class Game
         public readonly int[] Raised;
 
         /// <summary>
+        /// Player check status
+        /// </summary>
+        public readonly bool[] Checked;
+
+        /// <summary>
         /// Player money
         /// </summary>
         public readonly int[] Money;
@@ -390,12 +394,14 @@ public class Game
         /// </summary>
         public readonly List<Action> History;
 
-        public State(int index, int raise, int[] raised, int[] money, int pot, Card[] river, Card[] hand,
+        public State(int index, int raise, int[] raised, bool[] hasChecked, int[] money, int pot, Card[] river,
+            Card[] hand,
             List<Action> history)
         {
             Index = index;
             Raise = raise;
             Raised = raised;
+            Checked = hasChecked;
             Money = money;
             Pot = pot;
             River = river;
@@ -423,11 +429,6 @@ public class Game
     private Card[] _hands;
 
     /// <summary>
-    /// Constant for _raise to indicate checking in a new cycle
-    /// </summary>
-    public const int Check = -1;
-
-    /// <summary>
     /// Player turn
     /// </summary>
     private int _turn;
@@ -453,6 +454,11 @@ public class Game
     private int[] _raised;
 
     /// <summary>
+    /// [player 0 checked, player 1 checked] in cycle
+    /// </summary>
+    private bool[] _checked;
+
+    /// <summary>
     /// Number of river cards revealed
     /// </summary>
     private int _riverCards;
@@ -472,6 +478,7 @@ public class Game
         _pot = 0;
         _raise = BbAmount;
         _raised = [BbAmount / 2, BbAmount];
+        _checked = [false, false];
         _riverCards = 0;
         _history = new List<Action>();
 
@@ -518,7 +525,7 @@ public class Game
 
         List<Action> actions = new List<Action>();
         actions.Add(Action.Fold());
-        for (int raise = int.Max(_raise, 0); raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
+        for (int raise = _raise; raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
         {
             actions.Add(Action.Raise(raise));
         }
@@ -528,7 +535,7 @@ public class Game
 
     public State GetState()
     {
-        return new State(_turn, _raise, _raised, _money, _pot,
+        return new State(_turn, _raise, _raised, _checked, _money, _pot,
             _hands.Skip(RiverHandOffset).Take(_riverCards).ToArray(),
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _history);
     }
@@ -589,6 +596,10 @@ public class Game
         if (action.Amount > _raise)
         {
             // handle raise
+
+            _checked[_turn] = true;
+            _checked[1 - _turn] = false;
+
             int amount = action.Amount - _raised[_turn];
 
             _pot += amount;
@@ -604,12 +615,10 @@ public class Game
             _pot += amount;
             _money[_turn] -= amount;
             _raised[_turn] = action.Amount;
+            _checked[_turn] = true;
 
-            // handle call/check
-            if (_raised[0] == _raise && _raised[1] == _raise)
+            if (_checked[0] && _checked[1])
             {
-                // if all done
-
                 if (_money[0] == 0 && _money[1] == 0)
                 {
                     // check for all in
@@ -624,7 +633,8 @@ public class Game
 
                 _turn = PlayerSb;
                 _raised = [0, 0];
-                _raise = Check;
+                _checked = [false, false];
+                _raise = 0;
             }
             else
             {
@@ -649,9 +659,9 @@ public class Game
         Console.WriteLine($"pot {_pot}, raise {_raise}");
         Console.WriteLine($"river {string.Join(sep, _hands.Skip(RiverHandOffset).Take(5))}");
         Console.WriteLine(
-            $"sb: {string.Join(sep, _hands.Skip(SbHandOffset).Take(2))}, raised {_raised[PlayerSb]}, money {_money[PlayerSb]}");
+            $"sb: {string.Join(sep, _hands.Skip(SbHandOffset).Take(2))}, checked {_checked[PlayerSb]}, raised {_raised[PlayerSb]}, money {_money[PlayerSb]}");
         Console.WriteLine(
-            $"bb: {string.Join(sep, _hands.Skip(BbHandOffset).Take(2))}, raised {_raised[PlayerBb]}, money {_money[PlayerBb]}");
+            $"bb: {string.Join(sep, _hands.Skip(BbHandOffset).Take(2))}, checked {_checked[PlayerBb]}, raised {_raised[PlayerBb]}, money {_money[PlayerBb]}");
 
         var util = Utility();
         if (util != null)
