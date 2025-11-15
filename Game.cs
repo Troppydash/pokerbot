@@ -35,7 +35,9 @@ public class Card
 
     public override string ToString()
     {
-        return $"{Suit}/{Rank}";
+        string[] suits = ["♥", "♦", "♠", "♣"];
+        string[] ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+        return $"{suits[Suit]}{ranks[Rank]}";
     }
 }
 
@@ -78,16 +80,17 @@ public class Action
 
 public static class HandResolver
 {
-    private const int HighCard = 0;
-    private const int Pair = 200;
-    private const int TwoPair = 400;
-    private const int ThreeKind = 600;
-    private const int Straight = 800;
-    private const int Flush = 1000;
-    private const int FullHouse = 1200;
-    private const int FourKind = 1400;
-    private const int StraightFlush = 1600;
-    private const int RoyalFlush = 1800;
+    private const int Base = 200;
+    private const int HighCard = 200;
+    private const int Pair = 400;
+    private const int TwoPair = 600;
+    private const int ThreeKind = 800;
+    private const int Straight = 1000;
+    private const int Flush = 1200;
+    private const int FullHouse = 1400;
+    private const int FourKind = 1600;
+    private const int StraightFlush = 1800;
+    private const int RoyalFlush = 2000;
 
     private const int NumberCards = 7;
     private const int NumberMatch = 5;
@@ -95,6 +98,36 @@ public static class HandResolver
     public const int Player0 = 0;
     public const int Player1 = 1;
     public const int Equal = 2;
+
+    public static string ParseValue(int value)
+    {
+        value /= Base;
+        switch (value)
+        {
+            case >= RoyalFlush:
+                return "Royal Flush";
+            case >= StraightFlush:
+                return "Straight Flush";
+            case >= FourKind:
+                return "Four Kind";
+            case >= FullHouse:
+                return "Full House";
+            case >= Flush:
+                return "Flush";
+            case >= Straight:
+                return "Straight";
+            case >= ThreeKind:
+                return "Three Kind";
+            case >= TwoPair:
+                return "Two Pair";
+            case >= Pair:
+                return "Pair";
+            case >= HighCard:
+                return "High Card";
+        }
+
+        throw new Exception("unparsable value");
+    }
 
     private static int GetValue(Card[] cards)
     {
@@ -118,7 +151,7 @@ public static class HandResolver
             }
 
             bool isStraight = true;
-            for (int i = 1; i < NumberCards; ++i)
+            for (int i = 1; i < NumberMatch; ++i)
             {
                 if (selected[i].Rank != selected[i - 1].Rank + 1)
                 {
@@ -129,7 +162,7 @@ public static class HandResolver
 
 
             bool isFlush = true;
-            for (int i = 1; i < NumberCards; ++i)
+            for (int i = 1; i < NumberMatch; ++i)
             {
                 if (selected[i].Suit != selected[0].Suit)
                 {
@@ -140,14 +173,14 @@ public static class HandResolver
 
             // rank to frequency
             int[] rankFrequency = new int[Card.NumberRanks];
-            foreach (var card in sortedCards)
+            foreach (var card in selected)
             {
                 rankFrequency[card.Rank] += 1;
             }
 
             // frequency to ranks
-            List<int>[] frequencyRank = new List<int>[NumberCards];
-            for (int i = 0; i < NumberCards; ++i)
+            List<int>[] frequencyRank = new List<int>[NumberMatch + 1];
+            for (int i = 0; i < NumberMatch + 1; ++i)
             {
                 frequencyRank[i] = new List<int>();
             }
@@ -160,7 +193,7 @@ public static class HandResolver
             // royal flush and straight flush
             if (isStraight && isFlush)
             {
-                int topRank = selected[NumberCards - 1].Rank;
+                int topRank = selected.Last().Rank;
                 if (topRank == Card.NumberRanks - 1)
                 {
                     bestValue = int.Max(bestValue, RoyalFlush);
@@ -188,14 +221,14 @@ public static class HandResolver
             // flush
             if (isFlush)
             {
-                int topRank = selected[NumberCards - 1].Rank;
+                int topRank = selected.Last().Rank;
                 bestValue = int.Max(bestValue, Flush + topRank);
             }
 
             // straight
             if (isStraight)
             {
-                int topRank = selected[NumberCards - 1].Rank;
+                int topRank = selected.Last().Rank;
                 bestValue = int.Max(bestValue, Straight + topRank);
             }
 
@@ -223,7 +256,7 @@ public static class HandResolver
 
             // high card
             bestValue = int.Max(bestValue,
-                HighCard + sortedCards.Last().Rank);
+                HighCard + selected.Last().Rank);
         }
 
         return bestValue;
@@ -261,8 +294,8 @@ public static class HandResolver
         int high0 = highCard0 * Card.NumberRanks + lowCard0;
         int high1 = highCard1 * Card.NumberRanks + lowCard1;
 
-        int value0 = GetValue(river.Concat(p0).ToArray()) * 200 + high0;
-        int value1 = GetValue(river.Concat(p1).ToArray()) * 200 + high1;
+        int value0 = GetValue(river.Concat(p0).ToArray()) * Base + high0;
+        int value1 = GetValue(river.Concat(p1).ToArray()) * Base + high1;
 
         return [value0, value1];
     }
@@ -283,7 +316,10 @@ public class Game
     public const int BbHandOffset = 2;
     public const int RiverHandOffset = 4;
 
+
     private Card[] _hands;
+
+    public const int Check = -1;
 
     private int _turn;
     private int[] _money;
@@ -314,7 +350,12 @@ public class Game
 
         // chance sample
         _hands = Card.AllCards();
-        Random.Shared.Shuffle(_hands);
+    }
+
+    public void Shuffle(int seed)
+    {
+        Random rng = new Random(seed);
+        rng.Shuffle(_hands);
     }
 
     public int GetTurn()
@@ -331,7 +372,7 @@ public class Game
 
         List<Action> actions = new List<Action>();
         actions.Add(Action.Fold());
-        for (int raise = _raise; raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
+        for (int raise = int.Max(_raise, 0); raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
         {
             actions.Add(Action.Raise(raise));
         }
@@ -420,7 +461,7 @@ public class Game
 
                 _turn = PlayerSb;
                 _raised = [0, 0];
-                _raise = 0;
+                _raise = Check;
             }
             else
             {
@@ -454,7 +495,11 @@ public class Game
                 _hands.Skip(SbHandOffset).Take(2).ToArray(),
                 _hands.Skip(BbHandOffset).Take(2).ToArray());
 
-            Console.WriteLine($"Finished: hand values {string.Join(sep, values)}, utility {string.Join(sep, util)}");
+            Console.WriteLine($"Finished.");
+            Console.WriteLine(
+                $"sb: {HandResolver.ParseValue(values[PlayerSb])}/{values[PlayerSb]}, utility {util[PlayerSb]}");
+            Console.WriteLine(
+                $"bb: {HandResolver.ParseValue(values[PlayerBb])}/{values[PlayerBb]}, utility {util[PlayerBb]}");
         }
         else
         {

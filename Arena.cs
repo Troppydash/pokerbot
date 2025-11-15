@@ -9,7 +9,7 @@ public class Arena
         _agents = agents;
     }
 
-    public int[] Simulate(bool verbose = true)
+    public int[] Simulate(int seed, bool verbose = true)
     {
         foreach (var agent in _agents)
         {
@@ -17,6 +17,7 @@ public class Arena
         }
 
         Game game = new Game();
+        game.Shuffle(seed);
         while (game.Utility() == null)
         {
             if (verbose)

@@ -15,6 +15,6 @@ public class RandomAgent : IAgent
     public Action Play(Game game)
     {
         var actions = game.GetActions();
-        return actions[Random.Shared.Next(1, actions.Count)];
+        return actions[Random.Shared.Next(actions.Count)];
     }
 }
