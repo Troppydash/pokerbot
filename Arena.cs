@@ -37,7 +37,7 @@ public class Arena
                 game.Display();
             }
             
-            Action action = _agents[game.GetTurn()].Play(game);
+            Action action = _agents[game.GetTurn()].Play(game.GetState(), game.GetActions());
             game.Play(action);
 
             if (verbose)

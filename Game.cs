@@ -345,6 +345,65 @@ public static class HandResolver
 
 public class Game
 {
+    /// <summary>
+    /// Agent accessible state
+    /// </summary>
+    public class State
+    {
+        /// <summary>
+        /// Current player index
+        /// </summary>
+        public readonly int Index;
+
+        /// <summary>
+        /// Current highest raise
+        /// </summary>
+        public readonly int Raise;
+
+        /// <summary>
+        /// Player raised amounts
+        /// </summary>
+        public readonly int[] Raised;
+
+        /// <summary>
+        /// Player money
+        /// </summary>
+        public readonly int[] Money;
+
+        /// <summary>
+        /// Pot amount
+        /// </summary>
+        public readonly int Pot;
+
+        /// <summary>
+        /// River cards
+        /// </summary>
+        public readonly Card[] River;
+
+        /// <summary>
+        /// Self hand
+        /// </summary>
+        public readonly Card[] Hand;
+
+        /// <summary>
+        /// History actions
+        /// </summary>
+        public readonly List<Action> History;
+
+        public State(int index, int raise, int[] raised, int[] money, int pot, Card[] river, Card[] hand,
+            List<Action> history)
+        {
+            Index = index;
+            Raise = raise;
+            Raised = raised;
+            Money = money;
+            Pot = pot;
+            River = river;
+            Hand = hand;
+            History = history.GetRange(0, history.Count);
+        }
+    }
+
     // rule constants
     public const int AllInAmount = 1000;
     public const int BbAmount = 20;
@@ -465,6 +524,13 @@ public class Game
         }
 
         return actions;
+    }
+
+    public State GetState()
+    {
+        return new State(_turn, _raise, _raised, _money, _pot,
+            _hands.Skip(RiverHandOffset).Take(_riverCards).ToArray(),
+            _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _history);
     }
 
     /// <summary>

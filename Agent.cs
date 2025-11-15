@@ -9,13 +9,14 @@ public interface IAgent
     /// Called on game start
     /// </summary>
     public void Reset();
-    
+
     /// <summary>
     /// Think function, takes game state, return action
     /// </summary>
-    /// <param name="game">Game state</param>
+    /// <param name="state">Game state</param>
+    /// <param name="actions">Possible actions</param>
     /// <returns>Action</returns>
-    public Action Play(Game game);
+    public Action Play(Game.State state, List<Action> actions);
 }
 
 public class RandomAgent : IAgent
@@ -24,9 +25,8 @@ public class RandomAgent : IAgent
     {
     }
 
-    public Action Play(Game game)
+    public Action Play(Game.State state, List<Action> actions)
     {
-        var actions = game.GetActions();
         return actions[Random.Shared.Next(actions.Count)];
     }
 }
