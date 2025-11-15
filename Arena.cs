@@ -1,7 +1,13 @@
 namespace PokerBot;
 
+/// <summary>
+/// Agent simulation arena
+/// </summary>
 public class Arena
 {
+    /// <summary>
+    /// 2-list agents
+    /// </summary>
     private List<IAgent> _agents;
 
     public Arena(List<IAgent> agents)
@@ -9,6 +15,12 @@ public class Arena
         _agents = agents;
     }
 
+    /// <summary>
+    /// Simulate one game of poker and return utility result
+    /// </summary>
+    /// <param name="seed">Shuffle seed</param>
+    /// <param name="verbose">Print game states and actions</param>
+    /// <returns></returns>
     public int[] Simulate(int seed, bool verbose = true)
     {
         foreach (var agent in _agents)

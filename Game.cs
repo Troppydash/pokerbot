@@ -2,15 +2,18 @@ using System.Numerics;
 
 namespace PokerBot;
 
+/// <summary>
+/// A poker card
+/// </summary>
 public class Card
 {
     public const int NumberSuits = 4;
     public const int NumberRanks = 13;
 
-    // 0-3
+    // card suit 0-3
     public int Suit { get; private set; }
 
-    // 0-12
+    // card rank 0-12
     public int Rank { get; private set; }
 
     public Card(int suit, int rank)
@@ -19,6 +22,9 @@ public class Card
         Rank = rank;
     }
 
+    /// <summary>
+    /// Get all cards
+    /// </summary>
     public static Card[] AllCards()
     {
         Card[] cards = new Card[NumberSuits * NumberRanks];
@@ -41,6 +47,9 @@ public class Card
     }
 }
 
+/// <summary>
+/// A player action in poker
+/// </summary>
 public class Action
 {
     /// If zero, a check.
@@ -78,8 +87,14 @@ public class Action
     }
 }
 
+/// <summary>
+/// Hand comparison handler
+/// </summary>
 public static class HandResolver
 {
+    // card value constants
+    // formula is: player hand value + matching value * Base
+
     private const int Base = 200;
     private const int HighCard = 200;
     private const int Pair = 400;
@@ -92,13 +107,28 @@ public static class HandResolver
     private const int StraightFlush = 1800;
     private const int RoyalFlush = 2000;
 
+    /// <summary>
+    /// Total cards
+    /// </summary>
     private const int NumberCards = 7;
+
+    /// <summary>
+    /// Cards used for matching
+    /// </summary>
     private const int NumberMatch = 5;
+
+    // comparison return constants 
 
     public const int Player0 = 0;
     public const int Player1 = 1;
     public const int Equal = 2;
 
+    /// <summary>
+    /// Get string repr for a value
+    /// </summary>
+    /// <param name="value">Card value</param>
+    /// <returns>String repr</returns>
+    /// <exception cref="Exception"></exception>
     public static string ParseValue(int value)
     {
         value /= Base;
@@ -129,6 +159,11 @@ public static class HandResolver
         throw new Exception("unparsable value");
     }
 
+    /// <summary>
+    /// Get the best matching value out of 7 cards
+    /// </summary>
+    /// <param name="cards">7 total cards</param>
+    /// <returns>Best matching value</returns>
     private static int GetValue(Card[] cards)
     {
         List<Card> sortedCards = cards.OrderBy(c => c.Rank).ToList();
@@ -285,6 +320,13 @@ public static class HandResolver
         return Player1;
     }
 
+    /// <summary>
+    /// Get the hand values
+    /// </summary>
+    /// <param name="river">River cards (5 total)</param>
+    /// <param name="p0">Player 0 cards (2 total)</param>
+    /// <param name="p1">Player 1 cards (2 total)</param>
+    /// <returns>A 2-array of [player 0 value, player 1 value]</returns>
     public static int[] HandValues(Card[] river, Card[] p0, Card[] p1)
     {
         int highCard0 = int.Max(p0[0].Rank, p0[1].Rank);
@@ -303,30 +345,62 @@ public static class HandResolver
 
 public class Game
 {
-    //// rule constants
+    // rule constants
     public const int AllInAmount = 1000;
     public const int BbAmount = 20;
 
-    //// player indices
+    // player indices
     public const int PlayerSb = 0;
     public const int PlayerBb = 1;
 
-    //// chance sampling
+    // chance sampling constants
     public const int SbHandOffset = 0;
     public const int BbHandOffset = 2;
     public const int RiverHandOffset = 4;
 
-
+    /// <summary>
+    /// chance sampling cards
+    /// </summary>
     private Card[] _hands;
 
+    /// <summary>
+    /// Constant for _raise to indicate checking in a new cycle
+    /// </summary>
     public const int Check = -1;
 
+    /// <summary>
+    /// Player turn
+    /// </summary>
     private int _turn;
+
+    /// <summary>
+    /// [player 0 money left, player 1 money left]
+    /// </summary>
     private int[] _money;
+
+    /// <summary>
+    /// Pot value
+    /// </summary>
     private int _pot;
+
+    /// <summary>
+    /// Highest raise in cycle
+    /// </summary>
     private int _raise;
+
+    /// <summary>
+    /// [player 0 raise, player 1 raise] in cycle
+    /// </summary>
     private int[] _raised;
+
+    /// <summary>
+    /// Number of river cards revealed
+    /// </summary>
     private int _riverCards;
+
+    /// <summary>
+    /// Play history
+    /// </summary>
     private List<Action> _history;
 
     /// <summary>
@@ -352,17 +426,30 @@ public class Game
         _hands = Card.AllCards();
     }
 
+    /// <summary>
+    /// Shuffle game
+    /// </summary>
+    /// <param name="seed"></param>
     public void Shuffle(int seed)
     {
         Random rng = new Random(seed);
         rng.Shuffle(_hands);
     }
 
+    /// <summary>
+    /// Get next turn
+    /// </summary>
+    /// <returns>Player to play next</returns>
     public int GetTurn()
     {
         return _turn;
     }
 
+    /// <summary>
+    /// Get a list of actions for current player
+    /// </summary>
+    /// <returns>List of actions</returns>
+    /// <exception cref="Exception"></exception>
     public List<Action> GetActions()
     {
         if (_riverCards == 6)
@@ -380,6 +467,11 @@ public class Game
         return actions;
     }
 
+    /// <summary>
+    /// Get utility for game, null if not finished
+    /// </summary>
+    /// <returns>[player 0 utility, player 1 utility] if finished, null otherwise</returns>
+    /// <exception cref="Exception"></exception>
     public int[]? Utility()
     {
         int winner = HandResolver.Equal;
@@ -413,6 +505,11 @@ public class Game
         };
     }
 
+    /// <summary>
+    /// Play an action
+    /// </summary>
+    /// <param name="action"></param>
+    /// <exception cref="Exception"></exception>
     public void Play(Action action)
     {
         _history.Add(action);
@@ -475,7 +572,9 @@ public class Game
         }
     }
 
-
+    /// <summary>
+    /// Print the game state
+    /// </summary>
     public void Display()
     {
         Console.WriteLine("==== Game ====");
