@@ -380,12 +380,12 @@ public class Game
         public readonly int Pot;
 
         /// <summary>
-        /// River cards
+        /// Public cards
         /// </summary>
         public readonly Card[] River;
 
         /// <summary>
-        /// Self hand
+        /// Private cards
         /// </summary>
         public readonly Card[] Hand;
 
@@ -627,8 +627,15 @@ public class Game
                 }
                 else
                 {
-                    // else advance one
-                    _riverCards += 1;
+                    // else advance
+                    if (_riverCards == 0)
+                    {
+                        _riverCards = 3;
+                    }
+                    else
+                    {
+                        _riverCards += 1;
+                    }
                 }
 
                 _turn = PlayerSb;
@@ -655,9 +662,9 @@ public class Game
     {
         Console.WriteLine("==== Game ====");
         string sep = ", ";
-        Console.WriteLine($"turn {_turn}, #river {_riverCards}");
+        Console.WriteLine($"turn {_turn}, #public {_riverCards}");
         Console.WriteLine($"pot {_pot}, raise {_raise}");
-        Console.WriteLine($"river {string.Join(sep, _hands.Skip(RiverHandOffset).Take(5))}");
+        Console.WriteLine($"public {string.Join(sep, _hands.Skip(RiverHandOffset).Take(5))}");
         Console.WriteLine(
             $"sb: {string.Join(sep, _hands.Skip(SbHandOffset).Take(2))}, checked {_checked[PlayerSb]}, raised {_raised[PlayerSb]}, money {_money[PlayerSb]}");
         Console.WriteLine(
