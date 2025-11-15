@@ -32,6 +32,11 @@ public class Card
 
         return cards;
     }
+
+    public override string ToString()
+    {
+        return $"{Suit}/{Rank}";
+    }
 }
 
 public class Action
@@ -58,6 +63,16 @@ public class Action
     public static Action Fold()
     {
         return new Action(0, true);
+    }
+
+    public override string ToString()
+    {
+        if (IsFold)
+        {
+            return "Fold";
+        }
+
+        return $"Raise {Amount}";
     }
 }
 
@@ -132,6 +147,11 @@ public static class HandResolver
 
             // frequency to ranks
             List<int>[] frequencyRank = new List<int>[NumberCards];
+            for (int i = 0; i < NumberCards; ++i)
+            {
+                frequencyRank[i] = new List<int>();
+            }
+
             for (int i = 0; i < rankFrequency.Length; ++i)
             {
                 frequencyRank[rankFrequency[i]].Add(i);
@@ -218,6 +238,22 @@ public static class HandResolver
     /// <returns>The winner</returns>
     public static int CompareHands(Card[] river, Card[] p0, Card[] p1)
     {
+        int[] values = HandValues(river, p0, p1);
+        if (values[Player0] == values[Player1])
+        {
+            return Equal;
+        }
+
+        if (values[Player0] > values[Player1])
+        {
+            return Player0;
+        }
+
+        return Player1;
+    }
+
+    public static int[] HandValues(Card[] river, Card[] p0, Card[] p1)
+    {
         int highCard0 = int.Max(p0[0].Rank, p0[1].Rank);
         int lowCard0 = int.Min(p0[0].Rank, p0[1].Rank);
         int highCard1 = int.Max(p1[0].Rank, p1[1].Rank);
@@ -227,24 +263,15 @@ public static class HandResolver
 
         int value0 = GetValue(river.Concat(p0).ToArray()) * 200 + high0;
         int value1 = GetValue(river.Concat(p1).ToArray()) * 200 + high1;
-        if (value0 == value1)
-        {
-            return Equal;
-        }
 
-        if (value0 > value1)
-        {
-            return Player0;
-        }
-
-        return Player1;
+        return [value0, value1];
     }
 }
 
 public class Game
 {
     //// rule constants
-    public const int AllInAmount = 4000;
+    public const int AllInAmount = 1000;
     public const int BbAmount = 20;
 
     //// player indices
@@ -262,6 +289,7 @@ public class Game
     private int[] _money;
     private int _pot;
     private int _raise;
+    private int[] _raised;
     private int _riverCards;
     private List<Action> _history;
 
@@ -273,7 +301,8 @@ public class Game
         _turn = PlayerSb;
         _money = [AllInAmount, AllInAmount];
         _pot = 0;
-        _raise = 0;
+        _raise = BbAmount;
+        _raised = [BbAmount / 2, BbAmount];
         _riverCards = 0;
         _history = new List<Action>();
 
@@ -288,21 +317,21 @@ public class Game
         Random.Shared.Shuffle(_hands);
     }
 
-    public int GetPlayer()
+    public int GetTurn()
     {
         return _turn;
     }
 
     public List<Action> GetActions()
     {
-        if (_riverCards == 5)
+        if (_riverCards == 6)
         {
             throw new Exception("invalid state to call GetActions(), all cards revealed");
         }
 
         List<Action> actions = new List<Action>();
         actions.Add(Action.Fold());
-        for (int raise = _raise; raise <= _money[_turn]; raise += BbAmount)
+        for (int raise = _raise; raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
         {
             actions.Add(Action.Raise(raise));
         }
@@ -312,39 +341,124 @@ public class Game
 
     public int[]? Utility()
     {
-        // if river
-        if (_riverCards == 5)
+        int winner = HandResolver.Equal;
+
+        if (_riverCards == 6)
         {
-            // resolve winner
-            int winner = HandResolver.CompareHands(
+            // if river
+            winner = HandResolver.CompareHands(
                 _hands.Skip(RiverHandOffset).Take(5).ToArray(),
                 _hands.Skip(SbHandOffset).Take(2).ToArray(),
                 _hands.Skip(BbHandOffset).Take(2).ToArray()
             );
-
-            return winner switch
-            {
-                HandResolver.Equal => [0, 0],
-                HandResolver.Player0 => [_pot, -_pot],
-                HandResolver.Player1 => [-_pot, _pot],
-                _ => throw new Exception("unexpected winner")
-            };
         }
-
-        // if fold
-        if (_history.Count > 0 && _history.Last().IsFold)
+        else if (_history.Count > 0 && _history.Last().IsFold)
         {
+            // if fold
+            // remember that fold don't switch players
+            winner = 1 - _turn;
+        }
+        else
+        {
+            return null;
         }
 
-
-        return null;
+        return winner switch
+        {
+            HandResolver.Equal => [0, 0],
+            HandResolver.Player0 => [_pot + _money[0] - AllInAmount, _money[1] - AllInAmount],
+            HandResolver.Player1 => [_money[0] - AllInAmount, _pot + _money[1] - AllInAmount],
+            _ => throw new Exception("unexpected winner")
+        };
     }
 
     public void Play(Action action)
     {
+        _history.Add(action);
+
+        // do nothing on fold
+        if (action.IsFold)
+        {
+            return;
+        }
+
+        if (action.Amount > _raise)
+        {
+            // handle raise
+            int amount = action.Amount - _raised[_turn];
+
+            _pot += amount;
+            _money[_turn] -= amount;
+
+            _raise = action.Amount;
+            _raised[_turn] = action.Amount;
+            _turn = 1 - _turn;
+        }
+        else if (action.Amount == _raise)
+        {
+            int amount = action.Amount - _raised[_turn];
+            _pot += amount;
+            _money[_turn] -= amount;
+            _raised[_turn] = action.Amount;
+
+            // handle call/check
+            if (_raised[0] == _raise && _raised[1] == _raise)
+            {
+                // if all done
+
+                if (_money[0] == 0 && _money[1] == 0)
+                {
+                    // check for all in
+                    // skip to end
+                    _riverCards = 6;
+                }
+                else
+                {
+                    // else advance one
+                    _riverCards += 1;
+                }
+
+                _turn = PlayerSb;
+                _raised = [0, 0];
+                _raise = 0;
+            }
+            else
+            {
+                // else switch turn to raise/fold
+                _turn = 1 - _turn;
+            }
+        }
+        else
+        {
+            throw new Exception("invalid raise");
+        }
     }
+
 
     public void Display()
     {
+        Console.WriteLine("==== Game ====");
+        string sep = ", ";
+        Console.WriteLine($"turn {_turn}, #river {_riverCards}");
+        Console.WriteLine($"pot {_pot}, raise {_raise}");
+        Console.WriteLine($"river {string.Join(sep, _hands.Skip(RiverHandOffset).Take(5))}");
+        Console.WriteLine(
+            $"sb: {string.Join(sep, _hands.Skip(SbHandOffset).Take(2))}, raised {_raised[PlayerSb]}, money {_money[PlayerSb]}");
+        Console.WriteLine(
+            $"bb: {string.Join(sep, _hands.Skip(BbHandOffset).Take(2))}, raised {_raised[PlayerBb]}, money {_money[PlayerBb]}");
+
+        var util = Utility();
+        if (util != null)
+        {
+            int[] values = HandResolver.HandValues(_hands.Skip(RiverHandOffset).Take(5).ToArray(),
+                _hands.Skip(SbHandOffset).Take(2).ToArray(),
+                _hands.Skip(BbHandOffset).Take(2).ToArray());
+
+            Console.WriteLine($"Finished: hand values {string.Join(sep, values)}, utility {string.Join(sep, util)}");
+        }
+        else
+        {
+            Console.WriteLine($"Actions: {string.Join(sep, GetActions())}");
+        }
     }
 }
