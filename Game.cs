@@ -411,7 +411,7 @@ public class Game
     }
 
     // rule constants
-    public const int AllInAmount = 1000;
+    public const int AllInAmount = 4000;
     public const int BbAmount = 20;
 
     // player indices

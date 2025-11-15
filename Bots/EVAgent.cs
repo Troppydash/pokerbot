@@ -1,0 +1,146 @@
+namespace PokerBot.Bots;
+
+/// <summary>
+/// EV strategy agent
+/// </summary>
+public class EvAgent : IAgent
+{
+    private bool _verbose;
+
+    public EvAgent(bool verbose)
+    {
+        this._verbose = verbose;
+    }
+
+    public void Reset()
+    {
+    }
+
+    public Action Play(Game.State state, List<Action> actions)
+    {
+        List<Card> cards = Card.AllCards().ToList();
+
+        // remove own cards
+        foreach (var card in state.Hand)
+        {
+            cards.Remove(card);
+        }
+
+        // remove river cards
+        foreach (var card in state.River)
+        {
+            cards.Remove(card);
+        }
+
+        // simulate rolls
+        int n = 10000;
+        double wins = 0;
+        Card[] rolls = cards.GetRange(0, cards.Count).ToArray();
+
+        for (int i = 0; i < n; ++i)
+        {
+            Random.Shared.Shuffle(rolls);
+
+            Card[] pOther = rolls.Take(2).ToArray();
+            Card[] fullRiver = rolls.Skip(2).Take(5 - state.River.Length).ToArray();
+
+            int winner = FastResolver.CompareHands(
+                state.River.Concat(fullRiver).ToArray(),
+                state.Hand,
+                pOther
+            );
+
+            if (winner == HandResolver.Player0)
+            {
+                wins += 1.0;
+            }
+            else if (winner == HandResolver.Equal)
+            {
+                wins += 0.5;
+            }
+        }
+
+        double winProb = wins / n;
+
+        if (_verbose)
+        {
+            Console.WriteLine("==== Agent ====");
+            Console.WriteLine($"    Win prob {winProb}");
+        }
+
+
+        
+
+        double ev = winProb * state.Pot + (1 - winProb) * -(state.Raise - state.Raised[state.Index]);
+        if (_verbose)
+        {
+            Console.WriteLine($"    EV {ev}");
+        }
+
+        if (ev >= 40)
+        {
+            // try raise if ev is high
+            foreach (var action in actions)
+            {
+                if (!action.IsFold && action.Amount == state.Raise + 20)
+                {
+                    return action;
+                }
+            }
+        }
+        
+        if (ev >= 10)
+        {
+            // match raise if positive ev
+            foreach (var action in actions)
+            {
+                if (!action.IsFold && action.Amount == state.Raise)
+                {
+                    return action;
+                }
+            }
+
+            throw new Exception("no raise?");
+        }
+
+        // if can check, check
+        if (state.Raise == 0)
+        {
+            foreach (var action in actions)
+            {
+                if (!action.IsFold && action.Amount == 0)
+                {
+                    return action;
+                }
+            }
+
+            throw new Exception("no check?");
+        }
+
+        // bluff with chance
+        double chance = 0.2;
+        if (ev >= -20 && Random.Shared.NextDouble() < chance)
+        {
+            foreach (var action in actions)
+            {
+                if (!action.IsFold && action.Amount == state.Raise)
+                {
+                    return action;
+                }
+            }
+
+            throw new Exception("no raise?");
+        }
+
+        // otherwise fold
+        foreach (var action in actions)
+        {
+            if (action.IsFold)
+            {
+                return action;
+            }
+        }
+
+        throw new Exception("no fold?");
+    }
+}

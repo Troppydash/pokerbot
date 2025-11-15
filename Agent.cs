@@ -18,15 +18,3 @@ public interface IAgent
     /// <returns>Action</returns>
     public Action Play(Game.State state, List<Action> actions);
 }
-
-public class RandomAgent : IAgent
-{
-    public void Reset()
-    {
-    }
-
-    public Action Play(Game.State state, List<Action> actions)
-    {
-        return actions[Random.Shared.Next(actions.Count)];
-    }
-}
