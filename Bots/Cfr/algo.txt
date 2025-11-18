@@ -1,0 +1,16 @@
+Algorithm
+- SMD cluster for information set
+- CFR algorithm precomputation
+- CFR inference
+
+Information set
+- Position (bb, sb)
+- Street (preflop, flop, turn, river)
+- PublicCluster
+    - Preflop (none)
+    - Flop (flop)
+    - Turn (flop, turn)
+    - River (flop, turn, river)
+- PrivateCluster
+    - PublicCluster + Hole cards
+- Bets (fold, check, raise, all-in)

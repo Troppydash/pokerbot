@@ -87,17 +87,13 @@ public class FastResolver
         int k = 0;
 
         int[] rankFrequency = new int[Card.NumberRanks];
-        List<int>[] frequencyRank = new List<int>[NumberMatch + 1];
-        for (int i = 0; i < NumberMatch + 1; ++i)
-        {
-            frequencyRank[i] = new List<int>();
-        }
+        int[,] frequencyRank = new int[NumberMatch + 1, 2];
 
         for (uint mask = 0; mask < (1 << NumberCards); ++mask)
         {
             if (BitOperations.PopCount(mask) != NumberMatch)
                 continue;
-            
+
             // clear cache
             k = 0;
             for (int i = 0; i < Card.NumberRanks; ++i)
@@ -107,9 +103,8 @@ public class FastResolver
 
             for (int i = 0; i < NumberMatch + 1; ++i)
             {
-                frequencyRank[i].Clear();
+                frequencyRank[i, 0] = frequencyRank[i, 1] = -1;
             }
-
 
             // select set of five
             for (int i = 0; i < NumberCards; ++i)
@@ -149,7 +144,8 @@ public class FastResolver
             // frequency to ranks
             for (int i = 0; i < rankFrequency.Length; ++i)
             {
-                frequencyRank[rankFrequency[i]].Add(i);
+                frequencyRank[rankFrequency[i], 1] = frequencyRank[rankFrequency[i], 0];
+                frequencyRank[rankFrequency[i], 0] = i;
             }
 
             // royal flush and straight flush
@@ -169,19 +165,19 @@ public class FastResolver
                 continue;
 
             // four kind
-            if (frequencyRank[4].Count > 0)
+            if (frequencyRank[4, 0] >= 0)
             {
-                bestValue = int.Max(bestValue, FourKind + frequencyRank[4].Last());
+                bestValue = int.Max(bestValue, FourKind + frequencyRank[4, 0]);
             }
 
             if (bestValue >= FourKind)
                 continue;
 
             // full house
-            if (frequencyRank[3].Count > 0 && frequencyRank[2].Count > 2)
+            if (frequencyRank[3, 0] >= 0 && frequencyRank[2, 0] >= 0)
             {
                 bestValue = int.Max(bestValue,
-                    FullHouse + frequencyRank[3].Last() * Card.NumberRanks + frequencyRank[2].Last());
+                    FullHouse + frequencyRank[3, 0] * Card.NumberRanks + frequencyRank[2, 0]);
             }
 
             if (bestValue >= FullHouse)
@@ -208,31 +204,31 @@ public class FastResolver
                 continue;
 
             // three kind
-            if (frequencyRank[3].Count > 0)
+            if (frequencyRank[3, 0] >= 0)
             {
                 bestValue = int.Max(bestValue,
-                    ThreeKind + frequencyRank[3].Last());
+                    ThreeKind + frequencyRank[3, 0]);
             }
 
             if (bestValue >= ThreeKind)
                 continue;
 
             // two pair
-            if (frequencyRank[2].Count == 2)
+            if (frequencyRank[2, 0] >= 0 && frequencyRank[2, 1] >= 0)
             {
                 bestValue = int.Max(bestValue,
-                    TwoPair + frequencyRank[2].Last() * Card.NumberRanks +
-                    frequencyRank[2][frequencyRank[2].Count - 2]);
+                    TwoPair + frequencyRank[2, 0] * Card.NumberRanks +
+                    frequencyRank[2, 1]);
             }
 
             if (bestValue >= TwoPair)
                 continue;
 
             // pair
-            if (frequencyRank[2].Count == 1)
+            if (frequencyRank[2, 0] >= 0)
             {
                 bestValue = int.Max(bestValue,
-                    Pair + frequencyRank[2].Last());
+                    Pair + frequencyRank[2, 0]);
             }
 
             if (bestValue >= Pair)

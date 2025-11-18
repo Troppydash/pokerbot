@@ -246,7 +246,7 @@ public static class HandResolver
             }
 
             // full house
-            if (frequencyRank[3].Count > 0 && frequencyRank[2].Count > 2)
+            if (frequencyRank[3].Count > 0 && frequencyRank[2].Count > 0)
             {
                 bestValue = int.Max(bestValue,
                     FullHouse + frequencyRank[3].Last() * Card.NumberRanks + frequencyRank[2].Last());
