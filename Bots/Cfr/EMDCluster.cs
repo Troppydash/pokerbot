@@ -135,8 +135,7 @@ public class EmdCluster
         equity /= (double)samples * oppSamples;
         return equity;
     }
-
-
+    
     private static List<List<int>> Combinations(int n, int k, int offset = 0)
     {
         if (k == 0)
@@ -344,8 +343,7 @@ public class EmdCluster
     }
 
     #endregion
-
-
+    
     #region Public Clusters
 
     /// <summary>
