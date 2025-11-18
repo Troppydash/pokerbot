@@ -11,10 +11,10 @@ public class Card
     public const int NumberRanks = 13;
 
     // card suit 0-3
-    public int Suit { get; private set; }
+    public int Suit { get; }
 
     // card rank 0-12
-    public int Rank { get; private set; }
+    public int Rank { get; }
 
     public Card(int suit, int rank)
     {
@@ -44,6 +44,40 @@ public class Card
         string[] suits = ["♥", "♦", "♠", "♣"];
         string[] ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
         return $"{suits[Suit]}{ranks[Rank]}";
+    }
+
+    public override int GetHashCode()
+    {
+        // important, the hashcode is always the card's index in AllCards
+        return Suit * NumberRanks + Rank;
+    }
+
+    public static int HashDeck(Card[] deck)
+    {
+        // sort by rank
+        Card[] sorted = deck.OrderBy(card => card.Rank).ToArray();
+
+        // suitMapping[suit] = newSuit
+        int nextSuit = 0;
+        int[] suitMapping = [-1, -1, -1, -1];
+
+        int hash = 0;
+        foreach (var card in sorted)
+        {
+            if (suitMapping[card.Suit] == -1)
+            {
+                suitMapping[card.Suit] = nextSuit;
+                nextSuit += 1;
+            }
+
+            hash = (hash * (NumberRanks * NumberSuits)) + suitMapping[card.Suit] * NumberRanks + card.Rank;
+            if (hash > 1 << 30)
+            {
+                throw new Exception("int overflow");
+            }
+        }
+
+        return hash;
     }
 }
 
