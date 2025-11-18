@@ -7,10 +7,13 @@ Information set
 - Position (bb, sb)
 - Street (preflop, flop, turn, river)
 - PublicCluster
-    - Preflop (none)
-    - Flop (flop)
-    - Turn (flop, turn)
-    - River (flop, turn, river)
+    - Variants: preflop, flop, turn, river
+    - Each card group mapped to an equity histogram
+        - bins are private hole cluster ids
+        - heights are expected equity (when public cards + hole cards)
 - PrivateCluster
-    - PublicCluster + Hole cards
+    - hole cards
+    - each pair mapped to an equity distribution (probability of getting equity against random opp hand)
+        - bins are probability ranges
+        - heights are the proportion of equities (against random opp hand) in range
 - Bets (fold, check, raise, all-in)
