@@ -16,7 +16,7 @@ public class Card
     // card rank 0-12
     public int Rank { get; }
 
-    private Card(int suit, int rank)
+    public Card(int suit, int rank)
     {
         Suit = suit;
         Rank = rank;
@@ -55,7 +55,7 @@ public class Card
         // important, the hashcode is always the card's index in AllCards
         return Suit * NumberRanks + Rank;
     }
-    
+
     /// <summary>
     /// Compute the maximum hash for a deck of cards. Namely, max_{deck}(HashDeck(deck))
     /// </summary>
@@ -63,7 +63,7 @@ public class Card
     /// <returns>Highest hash</returns>
     public static int MaxHashDeck(int count)
     {
-        int hash = 0;
+        int hash = 1;
         for (int i = 0; i < count; ++i)
         {
             hash *= NumberRanks * NumberSuits;
@@ -115,12 +115,12 @@ public class Action
     /// If zero, a check.
     /// Otherwise, a call/raise
     public int Amount { get; }
-    
+
     /// <summary>
     /// The pot amount at the time of action
     /// </summary>
     public int Pot { get; }
-    
+
     /// If true, Fold
     public bool IsFold { get; }
 
@@ -130,7 +130,7 @@ public class Action
         {
             throw new Exception("invalid action");
         }
-        
+
         Amount = amount;
         Pot = pot;
         IsFold = fold;
@@ -150,7 +150,7 @@ public class Action
     {
         return IsFold ? "Fold" : $"Raise {Amount}";
     }
-    
+
     /// <summary>
     /// Simplified representation of the action
     /// </summary>
@@ -162,7 +162,7 @@ public class Action
             return "F";
         }
 
-        double percent = (double) Pot / Amount * 100;
+        double percent = (double)Pot / Amount * 100;
         int simplified = (int)Math.Round(percent / 10);
         return $"C{simplified}";
     }
@@ -553,7 +553,7 @@ public class Game
     /// Play history for entire game
     /// </summary>
     private List<Action> _history;
-    
+
     /// <summary>
     /// History for only the current street
     /// </summary>
@@ -582,6 +582,44 @@ public class Game
 
         // chance sample
         _hands = Card.AllCards();
+    }
+
+
+    public Game(Card[] hands, int turn, int[] money, int pot, int raise, int[] raised, int lastIncrement,
+        bool[] @checked, int riverCards, List<Action> history, List<Action> streetHistory)
+    {
+        _hands = hands;
+        _turn = turn;
+        _money = money;
+        _pot = pot;
+        _raise = raise;
+        _raised = raised;
+        _lastIncrement = lastIncrement;
+        _checked = @checked;
+        _riverCards = riverCards;
+        _history = history;
+        _streetHistory = streetHistory;
+    }
+
+    /// <summary>
+    /// Deep clone the game state
+    /// </summary>
+    /// <returns>A complete game state clone</returns>
+    public Game Clone()
+    {
+        return new Game(
+            (Card[])_hands.Clone(),
+            _turn,
+            (int[])_money.Clone(),
+            _pot,
+            _raise,
+            (int[])_raised.Clone(),
+            _lastIncrement,
+            (bool[])_checked.Clone(),
+            _riverCards,
+            [.._history],
+            [.._streetHistory]
+        );
     }
 
     /// <summary>
@@ -628,7 +666,7 @@ public class Game
         // - increment defined as the additional amount
         // house rules
         // - limited to multiples of bb (and all in)
-        
+
         // add raise
         int increment = _lastIncrement == 0 ? BbAmount : _lastIncrement;
         int lastAmount = 0;
@@ -637,7 +675,7 @@ public class Game
             int amount = _raise + increment - _raised[_turn];
             if (amount > _money[_turn])
                 break;
-                
+
             actions.Add(Action.Raise(_pot, amount));
             lastAmount = amount;
             increment += BbAmount;
@@ -646,16 +684,16 @@ public class Game
         // check all-in
         if (lastAmount < _money[_turn])
         {
-            actions.Add(Action.Raise(_pot, _money[_turn]));            
+            actions.Add(Action.Raise(_pot, _money[_turn]));
         }
-        
+
         return actions;
     }
 
     public State GetState()
     {
         return new State(_turn, _raise, _raised, _checked, _money, _pot,
-            _hands.Skip(RiverHandOffset).Take(_riverCards).ToArray(),
+            _hands.Skip(RiverHandOffset).Take(int.Min(5, _riverCards)).ToArray(),
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
 
@@ -705,6 +743,7 @@ public class Game
     public void Play(Action action)
     {
         _history.Add(action);
+        _streetHistory.Add(action);
 
         // do nothing on fold
         if (action.IsFold)

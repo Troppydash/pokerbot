@@ -666,25 +666,4 @@ public class EmdCluster
     }
 
     #endregion
-    
-    public static void GenerateAndLoadCluster()
-    {
-        EmdCluster.SaveHoleClusterPoints("holeCluster.json", 1000, 10);
-        var clusters = EmdCluster.LoadHoleClusterPoints("holeCluster.json")!;
-        EmdCluster.ClusterHoleCards("holeClusterGroups.json", clusters, 1000, 20);
-        var groups = EmdCluster.LoadClusterHoleCards("holeClusterGroups.json")!;
-        
-        EmdCluster.SavePublicClusterPoints("publicCluster.json", groups, 5, 5, 5);
-        var publicPoints = EmdCluster.LoadPublicClusterPoints("publicCluster.json");
-        
-        EmdCluster.ClusterPublicCards("publicClusterGroup0.json", publicPoints, 0, 10, 1);
-        EmdCluster.ClusterPublicCards("publicClusterGroup3.json", publicPoints, 3, 10, 20);
-        EmdCluster.ClusterPublicCards("publicClusterGroup4.json", publicPoints, 4, 10, 40);
-        EmdCluster.ClusterPublicCards("publicClusterGroup5.json", publicPoints, 5, 10, 50);
-
-        var group0 = EmdCluster.LoadClusterPublicCards("publicClusterGroup0.json", 0);
-        var group3 = EmdCluster.LoadClusterPublicCards("publicClusterGroup3.json", 3);
-        var group4 = EmdCluster.LoadClusterPublicCards("publicClusterGroup4.json", 4);
-        var group5 = EmdCluster.LoadClusterPublicCards("publicClusterGroup5.json", 5);
-    }
 }

@@ -122,9 +122,54 @@ public class Infoset
             3 => _flopCluster[Card.HashDeck(visible)],
             4 => _turnCluster[Card.HashDeck(visible)],
             5 => _riverCluster[Card.HashDeck(visible)],
+            6 => _riverCluster[Card.HashDeck(visible)],
             _ => throw new Exception("invalid visible card length")
         };
 
         return new Entry(street, position, publicCluster, holeCluster, bets);
+    }
+
+    public Entry FromGame(Game game)
+    {
+        var state = game.GetState();
+        return Lookup(state.River.Length, state.Index, state.Hand, state.River, state.History);
+    }
+
+    public static Infoset FromClusters(bool compute = false)
+    {
+        if (compute)
+            EmdCluster.SaveHoleClusterPoints("holeCluster.json", 1000, 10);
+
+        var clusters = EmdCluster.LoadHoleClusterPoints("holeCluster.json")!;
+
+        if (compute)
+            EmdCluster.ClusterHoleCards("holeClusterGroups.json", clusters, 1000, 20);
+
+        var groups = EmdCluster.LoadClusterHoleCards("holeClusterGroups.json")!;
+
+        if (compute)
+            EmdCluster.SavePublicClusterPoints("publicCluster.json", groups, 5, 5, 5);
+
+        var publicPoints = EmdCluster.LoadPublicClusterPoints("publicCluster.json");
+
+        if (compute)
+        {
+            EmdCluster.ClusterPublicCards("publicClusterGroup0.json", publicPoints, 0, 10, 1);
+            EmdCluster.ClusterPublicCards("publicClusterGroup3.json", publicPoints, 3, 10, 20);
+            EmdCluster.ClusterPublicCards("publicClusterGroup4.json", publicPoints, 4, 10, 40);
+            EmdCluster.ClusterPublicCards("publicClusterGroup5.json", publicPoints, 5, 10, 50);
+        }
+
+        var group0 = EmdCluster.LoadClusterPublicCards("publicClusterGroup0.json", 0)!;
+        var group3 = EmdCluster.LoadClusterPublicCards("publicClusterGroup3.json", 3)!;
+        var group4 = EmdCluster.LoadClusterPublicCards("publicClusterGroup4.json", 4)!;
+        var group5 = EmdCluster.LoadClusterPublicCards("publicClusterGroup5.json", 5)!;
+        return new Infoset(
+            groups,
+            group0,
+            group3,
+            group4,
+            group5
+        );
     }
 }
