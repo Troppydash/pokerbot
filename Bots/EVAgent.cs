@@ -68,39 +68,23 @@ public class EvAgent : IAgent
             Console.WriteLine($"    Win prob {winProb}");
         }
 
-
-        
-
         double ev = winProb * state.Pot + (1 - winProb) * -(state.Raise - state.Raised[state.Index]);
         if (_verbose)
         {
             Console.WriteLine($"    EV {ev}");
         }
 
-        if (ev >= 40)
+        if (ev >= 20)
         {
             // try raise if ev is high
-            foreach (var action in actions)
-            {
-                if (!action.IsFold && action.Amount == state.Raise + 20)
-                {
-                    return action;
-                }
-            }
+            if (winProb * state.Pot + (1 - winProb) * -actions[2].Amount >= 10)
+                return actions[2];
         }
         
         if (ev >= 10)
         {
             // match raise if positive ev
-            foreach (var action in actions)
-            {
-                if (!action.IsFold && action.Amount == state.Raise)
-                {
-                    return action;
-                }
-            }
-
-            throw new Exception("no raise?");
+            return actions[1];
         }
 
         // if can check, check
@@ -121,26 +105,11 @@ public class EvAgent : IAgent
         double chance = 0.2;
         if (ev >= -20 && Random.Shared.NextDouble() < chance)
         {
-            foreach (var action in actions)
-            {
-                if (!action.IsFold && action.Amount == state.Raise)
-                {
-                    return action;
-                }
-            }
-
-            throw new Exception("no raise?");
+            // 2nd is always check
+            return actions[1];
         }
 
         // otherwise fold
-        foreach (var action in actions)
-        {
-            if (action.IsFold)
-            {
-                return action;
-            }
-        }
-
-        throw new Exception("no fold?");
+        return actions[0];
     }
 }

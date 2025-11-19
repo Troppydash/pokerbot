@@ -16,7 +16,7 @@ public class Card
     // card rank 0-12
     public int Rank { get; }
 
-    public Card(int suit, int rank)
+    private Card(int suit, int rank)
     {
         Suit = suit;
         Rank = rank;
@@ -50,6 +50,17 @@ public class Card
     {
         // important, the hashcode is always the card's index in AllCards
         return Suit * NumberRanks + Rank;
+    }
+
+    public static int MaxHashDeck(int count)
+    {
+        int hash = 0;
+        for (int i = 0; i < count; ++i)
+        {
+            hash *= NumberRanks * NumberSuits;
+        }
+
+        return hash;
     }
 
     public static int HashDeck(Card[] deck)
@@ -87,38 +98,45 @@ public class Card
 public class Action
 {
     /// If zero, a check.
-    /// If equal to raise, a call.
-    /// Otherwise, a raise.
-    public int Amount { get; private set; }
-
+    /// Otherwise, a call/raise
+    public int Amount { get; }
+    
+    /// <summary>
+    /// The pot amount at the time of action
+    /// </summary>
+    public int Pot { get; }
+    
     /// If true, Fold
-    public bool IsFold { get; private set; }
+    public bool IsFold { get; }
 
-    private Action(int amount, bool fold)
+    private Action(int amount, int pot, bool fold)
     {
+        if (amount < 0 || pot < 0)
+        {
+            throw new Exception("invalid action");
+        }
+        
         Amount = amount;
+        Pot = pot;
         IsFold = fold;
     }
 
-    public static Action Raise(int amount)
+    public static Action Raise(int pot, int amount)
     {
-        return new Action(amount, false);
+        return new Action(amount, pot, false);
     }
 
-    public static Action Fold()
+    public static Action Fold(int pot)
     {
-        return new Action(0, true);
+        return new Action(0, pot, true);
     }
 
     public override string ToString()
     {
-        if (IsFold)
-        {
-            return "Fold";
-        }
-
-        return $"Raise {Amount}";
+        return IsFold ? "Fold" : $"Raise {Amount}";
     }
+    
+    // TODO: % string repr
 }
 
 /// <summary>
@@ -478,14 +496,19 @@ public class Game
     private int _pot;
 
     /// <summary>
-    /// Highest raise in cycle
+    /// Highest raise in cycle, _raise = Max(_raised)
     /// </summary>
     private int _raise;
 
     /// <summary>
-    /// [player 0 raise, player 1 raise] in cycle
+    /// [player 0 raise, player 1 raise] in cycle, this is total bet
     /// </summary>
     private int[] _raised;
+
+    /// <summary>
+    /// Last increment raise, _lastIncrement = _raise[0] - _raise[1] if 0 raised
+    /// </summary>
+    private int _lastIncrement;
 
     /// <summary>
     /// [player 0 checked, player 1 checked] in cycle
@@ -512,6 +535,7 @@ public class Game
         _pot = 0;
         _raise = BbAmount;
         _raised = [BbAmount / 2, BbAmount];
+        _lastIncrement = BbAmount;
         _checked = [false, false];
         _riverCards = 0;
         _history = new List<Action>();
@@ -520,7 +544,6 @@ public class Game
         _money[PlayerSb] -= BbAmount / 2;
         _money[PlayerBb] -= BbAmount;
         _pot += BbAmount / 2 + BbAmount;
-        _raise = BbAmount;
 
         // chance sample
         _hands = Card.AllCards();
@@ -558,12 +581,39 @@ public class Game
         }
 
         List<Action> actions = new List<Action>();
-        actions.Add(Action.Fold());
-        for (int raise = _raise; raise <= _money[_turn] + _raised[_turn]; raise += BbAmount)
+
+        // add fold
+        actions.Add(Action.Fold(_pot));
+
+        // add check
+        actions.Add(Action.Raise(_pot, _raise - _raised[_turn]));
+
+        // raise rules (no-limit texas hold'em):
+        // - minimum raise must be size of previous increment
+        // - increment defined as the additional amount
+        // house rules
+        // - limited to multiples of bb (and all in)
+        
+        // add raise
+        int increment = _lastIncrement == 0 ? BbAmount : _lastIncrement;
+        int lastAmount = 0;
+        while (true)
         {
-            actions.Add(Action.Raise(raise));
+            int amount = _raise + increment - _raised[_turn];
+            if (amount > _money[_turn])
+                break;
+                
+            actions.Add(Action.Raise(_pot, amount));
+            lastAmount = amount;
+            increment += BbAmount;
         }
 
+        // check all-in
+        if (lastAmount < _money[_turn])
+        {
+            actions.Add(Action.Raise(_pot, _money[_turn]));            
+        }
+        
         return actions;
     }
 
@@ -627,28 +677,28 @@ public class Game
             return;
         }
 
-        if (action.Amount > _raise)
+        if (action.Amount > _raise - _raised[_turn])
         {
             // handle raise
 
             _checked[_turn] = true;
             _checked[1 - _turn] = false;
 
-            int amount = action.Amount - _raised[_turn];
-
+            int amount = action.Amount;
             _pot += amount;
             _money[_turn] -= amount;
 
-            _raise = action.Amount;
-            _raised[_turn] = action.Amount;
+            _lastIncrement = action.Amount + _raised[_turn] - _raise;
+            _raised[_turn] += action.Amount;
+            _raise = _raised[_turn];
             _turn = 1 - _turn;
         }
-        else if (action.Amount == _raise)
+        else if (action.Amount == _raise - _raised[_turn])
         {
-            int amount = action.Amount - _raised[_turn];
+            int amount = action.Amount;
             _pot += amount;
             _money[_turn] -= amount;
-            _raised[_turn] = action.Amount;
+            _raised[_turn] += amount;
             _checked[_turn] = true;
 
             if (_checked[0] && _checked[1])
@@ -676,6 +726,7 @@ public class Game
                 _raised = [0, 0];
                 _checked = [false, false];
                 _raise = 0;
+                _lastIncrement = 0;
             }
             else
             {
@@ -697,7 +748,7 @@ public class Game
         Console.WriteLine("==== Game ====");
         string sep = ", ";
         Console.WriteLine($"turn {_turn}, #public {_riverCards}");
-        Console.WriteLine($"pot {_pot}, raise {_raise}");
+        Console.WriteLine($"pot {_pot}, raise {_raise}, incre {_lastIncrement}");
         Console.WriteLine($"public {string.Join(sep, _hands.Skip(RiverHandOffset).Take(5))}");
         Console.WriteLine(
             $"sb: {string.Join(sep, _hands.Skip(SbHandOffset).Take(2))}, checked {_checked[PlayerSb]}, raised {_raised[PlayerSb]}, money {_money[PlayerSb]}");
