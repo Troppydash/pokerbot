@@ -46,12 +46,21 @@ public class Card
         return $"{suits[Suit]}{ranks[Rank]}";
     }
 
+    /// <summary>
+    /// Compute the unique hash of the card
+    /// </summary>
+    /// <returns></returns>
     public override int GetHashCode()
     {
         // important, the hashcode is always the card's index in AllCards
         return Suit * NumberRanks + Rank;
     }
-
+    
+    /// <summary>
+    /// Compute the maximum hash for a deck of cards. Namely, max_{deck}(HashDeck(deck))
+    /// </summary>
+    /// <param name="count">Number of cards</param>
+    /// <returns>Highest hash</returns>
     public static int MaxHashDeck(int count)
     {
         int hash = 0;
@@ -63,6 +72,12 @@ public class Card
         return hash;
     }
 
+    /// <summary>
+    /// Compute the perfect unique hash (within the same card numbers) for a number of cards 
+    /// </summary>
+    /// <param name="deck">A list of cards</param>
+    /// <returns>Unique hash</returns>
+    /// <exception cref="Exception">If the hash is not unique (number too large)</exception>
     public static int HashDeck(Card[] deck)
     {
         // sort by rank
@@ -136,7 +151,21 @@ public class Action
         return IsFold ? "Fold" : $"Raise {Amount}";
     }
     
-    // TODO: % string repr
+    /// <summary>
+    /// Simplified representation of the action
+    /// </summary>
+    /// <returns>String representation</returns>
+    public string Repr()
+    {
+        if (IsFold)
+        {
+            return "F";
+        }
+
+        double percent = (double) Pot / Amount * 100;
+        int simplified = (int)Math.Round(percent / 10);
+        return $"C{simplified}";
+    }
 }
 
 /// <summary>

@@ -33,7 +33,7 @@ public class EvAgent : IAgent
         }
 
         // simulate rolls
-        int n = 10000;
+        int n = 1000;
         double wins = 0;
         Card[] rolls = cards.GetRange(0, cards.Count).ToArray();
 
