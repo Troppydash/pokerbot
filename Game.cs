@@ -550,9 +550,14 @@ public class Game
     private int _riverCards;
 
     /// <summary>
-    /// Play history
+    /// Play history for entire game
     /// </summary>
     private List<Action> _history;
+    
+    /// <summary>
+    /// History for only the current street
+    /// </summary>
+    private List<Action> _streetHistory;
 
     /// <summary>
     /// Create a new game
@@ -568,6 +573,7 @@ public class Game
         _checked = [false, false];
         _riverCards = 0;
         _history = new List<Action>();
+        _streetHistory = new List<Action>();
 
         // setup
         _money[PlayerSb] -= BbAmount / 2;
@@ -650,7 +656,7 @@ public class Game
     {
         return new State(_turn, _raise, _raised, _checked, _money, _pot,
             _hands.Skip(RiverHandOffset).Take(_riverCards).ToArray(),
-            _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _history);
+            _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
 
     /// <summary>
@@ -756,6 +762,7 @@ public class Game
                 _checked = [false, false];
                 _raise = 0;
                 _lastIncrement = 0;
+                _streetHistory = [];
             }
             else
             {
