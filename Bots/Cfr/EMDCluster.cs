@@ -136,32 +136,7 @@ public class EmdCluster
         return equity;
     }
     
-    private static List<List<int>> Combinations(int n, int k, int offset = 0)
-    {
-        if (k == 0)
-        {
-            return [[]];
-        }
-
-        if (n == 0)
-        {
-            return [];
-        }
-
-
-        // choose
-        var choose = Combinations(n - 1, k - 1, offset + 1);
-        var notChoose = Combinations(n - 1, k, offset + 1);
-
-        foreach (var l in choose)
-        {
-            l.Insert(0, offset);
-            notChoose.Add(l);
-        }
-
-        return notChoose;
-    }
-
+    
     #region Private Hole Clusters
 
     public static List<EmdCluster> SaveHoleClusterPoints(string path, int samples = 1000, int bins = 10)
@@ -375,7 +350,7 @@ public class EmdCluster
 
             // all combinations of size k
             int f = 0;
-            List<List<int>> combs = Combinations(cards.Length, k);
+            List<List<int>> combs = Helper.Combinations(cards.Length, k);
             foreach (var choices in combs)
             {
                 f += 1;
@@ -466,7 +441,7 @@ public class EmdCluster
             }
 
             // all combinations of size k
-            List<List<int>> combs = Combinations(cards.Length, k);
+            List<List<int>> combs = Helper.Combinations(cards.Length, k);
             foreach (var choices in combs)
             {
                 Card[] selected = new Card[choices.Count];
@@ -644,7 +619,7 @@ public class EmdCluster
         }
 
         Card[] cards = Card.AllCards();
-        List<List<int>> combs = Combinations(cards.Length, street);
+        List<List<int>> combs = Helper.Combinations(cards.Length, street);
         foreach (var choices in combs)
         {
             Card[] selected = new Card[choices.Count];

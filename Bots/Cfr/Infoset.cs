@@ -51,6 +51,13 @@ public class Infoset
     private int[] _turnCluster;
     private int[] _riverCluster;
 
+    private Dictionary<int, List<EmdCluster>> _holeMap;
+    private Dictionary<int, List<EmdCluster>> _preflopMap;
+    private Dictionary<int, List<EmdCluster>> _flopMap;
+    private Dictionary<int, List<EmdCluster>> _turnMap;
+    private Dictionary<int, List<EmdCluster>> _riverMap;
+
+
     public Infoset(
         Dictionary<int, List<EmdCluster>> holeCluster,
         Dictionary<int, List<EmdCluster>> preflopCluster,
@@ -59,6 +66,12 @@ public class Infoset
         Dictionary<int, List<EmdCluster>> riverCluster
     )
     {
+        _holeMap = holeCluster;
+        _preflopMap = preflopCluster;
+        _flopMap = flopCluster;
+        _turnMap = turnCluster;
+        _riverMap = riverCluster;
+
         _holeCluster = new int[Card.MaxHashDeck(2)];
         _preflopCluster = new int[Card.MaxHashDeck(0)];
         _flopCluster = new int[Card.MaxHashDeck(3)];
@@ -132,11 +145,101 @@ public class Infoset
     public Entry FromGame(Game game)
     {
         var state = game.GetState();
-        return Lookup(state.River.Length, state.Index, state.Hand, state.River, state.History);
+        return Lookup(state.Street, state.Index, state.Hand, state.River, game.GetAbstractStreetHistory());
+    }
+
+    public IEnumerable<(Card[], Card[], Card[])> AllStarters()
+    {
+        // need to generate all hole/public cluster pairs
+        foreach (var sbHole in _holeMap)
+        {
+            Card[] sbh = sbHole.Value[0].Hole;
+
+            foreach (var bbHole in _holeMap)
+            {
+                foreach (var bbHoleEmd in bbHole.Value)
+                {
+                    // ensure sbh and bbh are different
+                    Card[] bbh = bbHoleEmd.Hole;
+                    if (!Helper.Distinct(sbh, bbh)) continue;
+
+                    Card[] combined = sbh.Concat(bbh).ToArray();
+
+                    foreach (var map in (List<Dictionary<int, List<EmdCluster>>>) [_flopMap, _turnMap, _riverMap])
+                    {
+                        foreach (var emdCluster in map)
+                        {
+                            // ensure no conflicts
+                            foreach (var cluster in emdCluster.Value)
+                            {
+                                if (!Helper.Distinct(combined, cluster.Visible)) continue;
+
+                                Card[] remain = Helper.SelectRemain(combined,
+                                    5 - cluster.Visible.Length);
+
+                                yield return (sbh, bbh, cluster.Visible.Concat(remain).ToArray());
+                                break;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    public IEnumerable<Entry> Forward(int depth, List<Action> validActions)
+    {
+        // 0/0/0/4
+        // 0/1/0/3/C
+        foreach (int street in (int[]) [0, 3, 4, 5, 6])
+        {
+            // bets
+            List<List<Action>> actions = [[]];
+            for (int count = 0; count <= depth + 1; ++count)
+            {
+                foreach (var list in actions)
+                {
+                    foreach (var hole in _holeMap)
+                    {
+                        // public
+                        var choice = street switch
+                        {
+                            0 => _preflopMap,
+                            3 => _flopMap,
+                            4 => _turnMap,
+                            5 => _riverMap,
+                            6 => _riverMap
+                        };
+                        foreach (var visible in choice)
+                        {
+                            foreach (int position in (int[]) [0, 1])
+                            {
+                                yield return new Entry(street, position, visible.Key, hole.Key, list);
+                            }
+                        }
+                    }
+                }
+
+                List<List<Action>> newActions = [];
+                foreach (var action in actions)
+                {
+                    foreach (var valid in validActions)
+                    {
+                        newActions.Add([..action, valid]);
+                    }
+                }
+
+                actions = newActions;
+            }
+        }
     }
 
     public static Infoset FromClusters(bool compute = false)
     {
+        Console.WriteLine("Loading Hole Clusters");
+
         if (compute)
             EmdCluster.SaveHoleClusterPoints("holeCluster.json", 1000, 10);
 
@@ -146,6 +249,8 @@ public class Infoset
             EmdCluster.ClusterHoleCards("holeClusterGroups.json", clusters, 1000, 20);
 
         var groups = EmdCluster.LoadClusterHoleCards("holeClusterGroups.json")!;
+
+        Console.WriteLine("Loading Public Clusters");
 
         if (compute)
             EmdCluster.SavePublicClusterPoints("publicCluster.json", groups, 5, 5, 5);
@@ -164,6 +269,7 @@ public class Infoset
         var group3 = EmdCluster.LoadClusterPublicCards("publicClusterGroup3.json", 3)!;
         var group4 = EmdCluster.LoadClusterPublicCards("publicClusterGroup4.json", 4)!;
         var group5 = EmdCluster.LoadClusterPublicCards("publicClusterGroup5.json", 5)!;
+
         return new Infoset(
             groups,
             group0,

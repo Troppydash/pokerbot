@@ -92,7 +92,7 @@ public class EvAgent : IAgent
         {
             foreach (var action in actions)
             {
-                if (!action.IsFold && action.Amount == 0)
+                if (!action.IsFold() && action.Amount == 0)
                 {
                     return action;
                 }
