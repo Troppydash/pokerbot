@@ -1,0 +1,168 @@
+namespace PokerBot.Bots.Cfr;
+
+public class AbstractGame : Game
+{
+    public const int Depth = 3;
+
+    private List<Action> _abstractHistory;
+
+    public AbstractGame() : base()
+    {
+        _abstractHistory = [];
+    }
+
+    public AbstractGame(Card[] hands, int turn, int[] money, int pot, int raise, int[] raised, int lastIncrement,
+        bool[] @checked, int riverCards, List<Action> history, List<Action> streetHistory,
+        List<Action> abstractHistory) : base(hands, turn, money, pot, raise, raised, lastIncrement, @checked,
+        riverCards, history, streetHistory)
+    {
+        _abstractHistory = abstractHistory;
+    }
+
+    public override AbstractGame Clone()
+    {
+        return new AbstractGame(
+            (Card[])_hands.Clone(),
+            _turn,
+            (int[])_money.Clone(),
+            _pot,
+            _raise,
+            (int[])_raised.Clone(),
+            _lastIncrement,
+            (bool[])_checked.Clone(),
+            _riverCards,
+            [.._history],
+            [.._streetHistory],
+            [.._abstractHistory]
+        );
+    }
+
+    private Action AbstractToReal(Action @abstract)
+    {
+        var actions = GetActions();
+
+        // find the closest
+        if (@abstract.IsFold())
+        {
+            return actions[0];
+        }
+
+        if (@abstract.IsCheck())
+        {
+            return actions[1];
+        }
+
+        if (@abstract.IsAllin())
+        {
+            return actions.Last();
+        }
+
+        Action best = actions[2];
+        double diff = Double.MaxValue;
+        for (int i = 2; i < actions.Count - 1; ++i)
+        {
+            var action = actions[i];
+            double newDiff = double.Abs(action.Proportion() - @abstract.Proportion());
+            if (newDiff < diff)
+            {
+                best = action;
+                diff = newDiff;
+            }
+        }
+
+        return best;
+    }
+
+    private Action RealToAbstract(Action real, List<Action> actions)
+    {
+        // find the closest
+        if (real.IsFold())
+        {
+            return actions[0];
+        }
+
+        if (real.IsCheck())
+        {
+            return actions[1];
+        }
+
+        if (real.IsAllin())
+        {
+            return actions.Last();
+        }
+
+        Action best = actions[2];
+        double diff = Double.MaxValue;
+        for (int i = 2; i < actions.Count - 1; ++i)
+        {
+            var action = actions[i];
+            double newDiff = double.Abs(action.Proportion() - real.Proportion());
+            if (newDiff < diff)
+            {
+                best = action;
+                diff = newDiff;
+            }
+        }
+
+        return best;
+    }
+
+    public static List<Action> ValidActions =
+    [
+        Action.Fold(10),
+        Action.Raise(10, 0, Action.CheckFlag),
+        Action.Raise(10, 3, 0),
+        Action.Raise(10, 10, 0),
+        // Action.Raise(10, 20, 0),
+        Action.Raise(10, 100, Action.AllinFlag),
+    ];
+
+    public static List<Action> LimitActions =
+    [
+        Action.Fold(10),
+        Action.Raise(10, 0, Action.CheckFlag)
+    ];
+
+    public List<Action> AbstractActions()
+    {
+        if (_streetHistory.Count >= Depth)
+        {
+            return LimitActions;
+        }
+
+        return ValidActions;
+    }
+
+    public override State GetState()
+    {
+        State state = base.GetState();
+        return new State(
+            state.Index,
+            state.Street,
+            state.Raise,
+            state.Raised,
+            state.Checked,
+            state.Money,
+            state.Pot,
+            state.River,
+            state.Hand,
+            _abstractHistory);
+    }
+
+    public override void Play(Action abstractAction)
+    {
+        // convert to real action
+        var action = AbstractToReal(abstractAction);
+        base.Play(action);
+
+        // update abstract history
+        if (_streetHistory.Count > 0)
+        {
+            _abstractHistory.Add(abstractAction);
+        }
+        else
+        {
+            _abstractHistory.Clear();
+        }
+    }
+}

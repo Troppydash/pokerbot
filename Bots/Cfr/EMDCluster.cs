@@ -4,9 +4,9 @@ namespace PokerBot.Bots.Cfr;
 
 public class EmdCluster
 {
-    public Card[] Hole { get; set; }
-    public Card[] Visible { get; set; }
-    public double[] EquityDistribution { get; set; }
+    public Card[]? Hole { get; set; }
+    public Card[]? Visible { get; set; }
+    public required double[] EquityDistribution { get; set; }
 
     public double Distance(EmdCluster other)
     {
@@ -135,8 +135,8 @@ public class EmdCluster
         equity /= (double)samples * oppSamples;
         return equity;
     }
-    
-    
+
+
     #region Private Hole Clusters
 
     public static List<EmdCluster> SaveHoleClusterPoints(string path, int samples = 1000, int bins = 10)
@@ -318,7 +318,7 @@ public class EmdCluster
     }
 
     #endregion
-    
+
     #region Public Clusters
 
     /// <summary>
@@ -383,7 +383,7 @@ public class EmdCluster
                         {
                             var cluster = privateCluster.Value[Random.Shared.Next(privateCluster.Value.Count)];
                             equity += ComputeEquity(
-                                cluster.Hole,
+                                cluster.Hole!,
                                 selected,
                                 oppSamples,
                                 samples
@@ -434,7 +434,7 @@ public class EmdCluster
             Dictionary<int, EmdCluster> cache = new Dictionary<int, EmdCluster>();
             foreach (var cluster in points)
             {
-                if (cluster.Visible.Length == k)
+                if (cluster.Visible!.Length == k)
                 {
                     cache.Add(Card.HashDeck(cluster.Visible), cluster);
                 }
@@ -474,7 +474,7 @@ public class EmdCluster
         List<EmdCluster> filteredPoints = [];
         foreach (var point in points)
         {
-            if (point.Visible.Length == street)
+            if (point.Visible!.Length == street)
                 filteredPoints.Add(point);
         }
 
@@ -584,7 +584,7 @@ public class EmdCluster
         for (int i = 0; i < centroidMap.Length; ++i)
         {
             // centroidMap[pointIndex] = centroid index
-            int hash = Card.HashDeck(filteredPoints[i].Visible);
+            int hash = Card.HashDeck(filteredPoints[i].Visible!);
             if (!cache.ContainsKey(hash))
             {
                 finalClusters[centroidMap[i]].Add(filteredPoints[i]);
@@ -605,16 +605,16 @@ public class EmdCluster
         // complete load
 
         Dictionary<int, List<EmdCluster>> completeGroups = new Dictionary<int, List<EmdCluster>>();
-        
+
         // create mapping from hash to groupId
         Dictionary<int, (int, EmdCluster)> hashToGroup = new Dictionary<int, (int, EmdCluster)>();
         foreach (var entry in groups)
         {
             completeGroups[entry.Key] = [];
-            
+
             foreach (var point in entry.Value)
             {
-                hashToGroup[Card.HashDeck(point.Visible)] = (entry.Key, point);
+                hashToGroup[Card.HashDeck(point.Visible!)] = (entry.Key, point);
             }
         }
 
@@ -631,7 +631,7 @@ public class EmdCluster
             var (groupId, point) = hashToGroup[Card.HashDeck(selected)];
             completeGroups[groupId].Add(new EmdCluster()
             {
-                EquityDistribution =point.EquityDistribution,
+                EquityDistribution = point.EquityDistribution,
                 Visible = selected,
                 Hole = null
             });

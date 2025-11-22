@@ -560,62 +560,62 @@ public class Game
     /// <summary>
     /// chance sampling cards
     /// </summary>
-    private Card[] _hands;
+    protected Card[] _hands;
 
     /// <summary>
     /// Player turn
     /// </summary>
-    private int _turn;
+    protected int _turn;
 
     /// <summary>
     /// [player 0 money left, player 1 money left]
     /// </summary>
-    private int[] _money;
+    protected int[] _money;
 
     /// <summary>
     /// Pot value
     /// </summary>
-    private int _pot;
+    protected int _pot;
 
     /// <summary>
     /// Highest raise in cycle, _raise = Max(_raised)
     /// </summary>
-    private int _raise;
+    protected int _raise;
 
     /// <summary>
     /// [player 0 raise, player 1 raise] in cycle, this is total bet
     /// </summary>
-    private int[] _raised;
+    protected int[] _raised;
 
     /// <summary>
     /// Last increment raise, _lastIncrement = _raise[0] - _raise[1] if 0 raised
     /// </summary>
-    private int _lastIncrement;
+    protected int _lastIncrement;
 
     /// <summary>
     /// [player 0 checked, player 1 checked] in cycle
     /// </summary>
-    private bool[] _checked;
+    protected bool[] _checked;
 
     /// <summary>
     /// Number of river cards revealed
     /// </summary>
-    private int _riverCards;
+    protected int _riverCards;
 
     /// <summary>
     /// Play history for entire game
     /// </summary>
-    private List<Action> _history;
+    protected List<Action> _history;
 
     /// <summary>
     /// History for only the current street
     /// </summary>
-    private List<Action> _streetHistory;
+    protected List<Action> _streetHistory;
 
-    /// <summary>
-    /// Custom abstracted street history
-    /// </summary>
-    private List<Action> _abstractStreetHistory;
+    // /// <summary>
+    // /// Custom abstracted street history
+    // /// </summary>
+    // private List<Action> _abstractStreetHistory;
 
     /// <summary>
     /// Create a new game
@@ -632,7 +632,7 @@ public class Game
         _riverCards = 0;
         _history = new List<Action>();
         _streetHistory = new List<Action>();
-        _abstractStreetHistory = new List<Action>();
+        // _abstractStreetHistory = new List<Action>();
 
         // setup
         _money[PlayerSb] -= BbAmount / 2;
@@ -645,8 +645,7 @@ public class Game
 
 
     public Game(Card[] hands, int turn, int[] money, int pot, int raise, int[] raised, int lastIncrement,
-        bool[] @checked, int riverCards, List<Action> history, List<Action> streetHistory,
-        List<Action> abstractStreetHistory)
+        bool[] @checked, int riverCards, List<Action> history, List<Action> streetHistory)
     {
         _hands = hands;
         _turn = turn;
@@ -659,14 +658,14 @@ public class Game
         _riverCards = riverCards;
         _history = history;
         _streetHistory = streetHistory;
-        _abstractStreetHistory = abstractStreetHistory;
+        // _abstractStreetHistory = abstractStreetHistory;
     }
 
     /// <summary>
     /// Deep clone the game state
     /// </summary>
     /// <returns>A complete game state clone</returns>
-    public Game Clone()
+    public virtual Game Clone()
     {
         return new Game(
             (Card[])_hands.Clone(),
@@ -679,8 +678,8 @@ public class Game
             (bool[])_checked.Clone(),
             _riverCards,
             [.._history],
-            [.._streetHistory],
-            [.._abstractStreetHistory]
+            [.._streetHistory]
+            // [.._abstractStreetHistory]
         );
     }
 
@@ -767,28 +766,13 @@ public class Game
         return actions;
     }
 
-    public List<Action> GetLimitedActions(int limit = 3)
-    {
-        List<Action> actions = GetActions();
-        if (_streetHistory.Count >= limit)
-        {
-            return [actions[0], actions[1]];
-        }
-
-        return actions;
-    }
-
-    public List<Action> GetAbstractStreetHistory()
-    {
-        return _abstractStreetHistory;
-    }
-
-    public State GetState()
+    public virtual State GetState()
     {
         return new State(_turn, _riverCards, _raise, _raised, _checked, _money, _pot,
             _hands.Skip(RiverHandOffset).Take(int.Min(5, _riverCards)).ToArray(),
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
+
 
     /// <summary>
     /// Get utility for game, null if not finished
@@ -832,14 +816,13 @@ public class Game
     /// Play an action
     /// </summary>
     /// <param name="action"></param>
-    /// <param name="abstractAction"></param>
     /// <exception cref="Exception"></exception>
-    public void Play(Action action, Action? abstractAction = null)
+    public virtual void Play(Action action)
     {
         _history.Add(action);
         _streetHistory.Add(action);
-        if (abstractAction != null)
-            _abstractStreetHistory.Add(abstractAction);
+        // if (abstractAction != null)
+        //     _abstractStreetHistory.Add(abstractAction);
 
         // do nothing on fold
         if (action.IsFold())
@@ -898,7 +881,7 @@ public class Game
                 _raise = 0;
                 _lastIncrement = 0;
                 _streetHistory = [];
-                _abstractStreetHistory = [];
+                // _abstractStreetHistory = [];
             }
             else
             {

@@ -104,13 +104,11 @@ public class Solver
         public Dictionary<string, double[]> Inference { get; }
 
         private Infoset _infoset;
-        private int _depth;
 
-        public Result(Dictionary<string, double[]> inference, Infoset infoset, int depth)
+        public Result(Dictionary<string, double[]> inference, Infoset infoset)
         {
             Inference = inference;
             _infoset = infoset;
-            _depth = depth;
         }
 
         public void Save(string filename)
@@ -122,7 +120,7 @@ public class Solver
         public int Missed()
         {
             int missed = 0;
-            foreach (var entry in _infoset.Forward(_depth, ValidActions))
+            foreach (var entry in _infoset.Forward(AbstractGame.Depth, AbstractGame.ValidActions))
             {
                 if (!Inference.ContainsKey(entry.ToString()))
                 {
@@ -135,7 +133,7 @@ public class Solver
 
         public void Display()
         {
-            foreach (var entry in _infoset.Forward(_depth, ValidActions))
+            foreach (var entry in _infoset.Forward(AbstractGame.Depth, AbstractGame.ValidActions))
             {
                 string key = entry.ToString();
                 if (Inference.ContainsKey(key))
@@ -155,15 +153,13 @@ public class Solver
 
     private Infoset _infoset;
     private Dictionary<string, Node> _states;
-    private Dictionary<string, Game> _suspense;
-    private int _depth;
+    private Dictionary<string, AbstractGame> _suspense;
 
-    public Solver(Infoset infoset, int depth)
+    public Solver(Infoset infoset)
     {
-        _depth = depth;
         _infoset = infoset;
         _states = new Dictionary<string, Node>();
-        _suspense = new Dictionary<string, Game>();
+        _suspense = new Dictionary<string, AbstractGame>();
     }
 
     #region Topo sort
@@ -240,103 +236,6 @@ public class Solver
 
     #endregion
 
-    #region Action Mapping
-
-    private Action AbstractToReal(Action @abstract, List<Action> actions)
-    {
-        // find the closest
-        if (@abstract.IsFold())
-        {
-            return actions[0];
-        }
-
-        if (@abstract.IsCheck())
-        {
-            return actions[1];
-        }
-
-        if (@abstract.IsAllin())
-        {
-            return actions.Last();
-        }
-
-        Action best = actions[2];
-        double diff = Double.MaxValue;
-        for (int i = 2; i < actions.Count - 1; ++i)
-        {
-            var action = actions[i];
-            double newDiff = double.Abs(action.Proportion() - @abstract.Proportion());
-            if (newDiff < diff)
-            {
-                best = action;
-                diff = newDiff;
-            }
-        }
-
-        return best;
-    }
-
-    private Action RealToAbstract(Action @real, List<Action> actions)
-    {
-        // find the closest
-        if (real.IsFold())
-        {
-            return actions[0];
-        }
-
-        if (real.IsCheck())
-        {
-            return actions[1];
-        }
-
-        if (real.IsAllin())
-        {
-            return actions.Last();
-        }
-
-        Action best = actions[2];
-        double diff = Double.MaxValue;
-        for (int i = 2; i < actions.Count - 1; ++i)
-        {
-            var action = actions[i];
-            double newDiff = double.Abs(action.Proportion() - real.Proportion());
-            if (newDiff < diff)
-            {
-                best = action;
-                diff = newDiff;
-            }
-        }
-
-        return best;
-    }
-
-    private static List<Action> ValidActions =
-    [
-        Action.Fold(10),
-        Action.Raise(10, 0, Action.CheckFlag),
-        Action.Raise(10, 3, 0),
-        Action.Raise(10, 10, 0),
-        // Action.Raise(10, 20, 0),
-        Action.Raise(10, 100, Action.AllinFlag),
-    ];
-
-    private static List<Action> LimitActions =
-    [
-        Action.Fold(10),
-        Action.Raise(10, 0, Action.CheckFlag)
-    ];
-
-    private List<Action> AbstractActions(Game game)
-    {
-        if (game.GetState().History.Count >= _depth)
-        {
-            return LimitActions;
-        }
-
-        return ValidActions;
-    }
-
-    #endregion
 
     public Result ToResult()
     {
@@ -348,7 +247,7 @@ public class Solver
                 inference.Add(entry.Key, entry.Value.AverageStrategy());
         }
 
-        return new Result(inference, _infoset, _depth);
+        return new Result(inference, _infoset);
     }
 
     public void Simulate(int iters, int seed)
@@ -356,16 +255,16 @@ public class Solver
         Console.WriteLine("Generating States");
         _states = new Dictionary<string, Node>();
 
-        List<Infoset.Entry> entries = _infoset.Forward(_depth, ValidActions).ToList();
+        List<Infoset.Entry> entries = _infoset.Forward(AbstractGame.Depth, AbstractGame.ValidActions).ToList();
         List<Infoset.Entry> reversedEntries = [..entries];
         reversedEntries.Reverse();
 
         foreach (var entry in entries)
         {
-            int actions = ValidActions.Count;
-            if (entry.Bets.Count == _depth)
+            int actions = AbstractGame.ValidActions.Count;
+            if (entry.Bets.Count == AbstractGame.Depth)
             {
-                actions = LimitActions.Count;
+                actions = AbstractGame.LimitActions.Count;
             }
 
             _states[entry.ToString()] = new Node(entry, actions);
@@ -376,12 +275,12 @@ public class Solver
         {
             if (it % 50 == 0)
                 Console.WriteLine($"Iteration {it}");
-            Game start = new Game();
+            AbstractGame start = new AbstractGame();
             start.Shuffle(rng.Next());
 
             // forward pass
             {
-                _suspense = new Dictionary<string, Game>();
+                _suspense = new Dictionary<string, AbstractGame>();
                 string startKey = _infoset.FromGame(start).ToString();
                 _suspense[startKey] = start;
                 _states[startKey].ReachProb = [1.0, 1.0];
@@ -395,7 +294,7 @@ public class Solver
                     if (!_suspense.ContainsKey(key))
                         continue;
 
-                    Game game = _suspense[key];
+                    AbstractGame game = _suspense[key];
                     Node node = _states[key];
 
                     // ignore finished game
@@ -404,14 +303,14 @@ public class Solver
 
                     // visit children
                     double[] strategy = node.GetStrategy();
-                    List<Action> realActions = game.GetLimitedActions(_depth);
-                    List<Action> abstractActions = AbstractActions(game);
+                    // List<Action> realActions = game.GetLimitedActions(_depth);
+                    List<Action> abstractActions = game.AbstractActions();
                     for (int i = 0; i < abstractActions.Count; ++i)
                     {
-                        Action realAction = AbstractToReal(abstractActions[i], realActions);
+                        // Action realAction = AbstractToReal(abstractActions[i], realActions);
 
-                        Game newGame = game.Clone();
-                        newGame.Play(realAction, abstractActions[i]);
+                        AbstractGame newGame = game.Clone();
+                        newGame.Play(abstractActions[i]);
 
                         // update reach prob
                         string newKey = _infoset.FromGame(newGame).ToString();
@@ -441,13 +340,13 @@ public class Solver
                     if (!_suspense.ContainsKey(key))
                         continue;
 
-                    Game game = _suspense[key];
+                    AbstractGame game = _suspense[key];
                     Node node = _states[key];
 
                     // if finished game
                     if (game.Utility() != null)
                     {
-                        node.Util = game.Utility()[game.GetTurn()];
+                        node.Util = game.Utility()![game.GetTurn()];
                         continue;
                     }
 
@@ -457,14 +356,11 @@ public class Solver
                     node.Util = 0.0;
 
                     // compute util
-                    List<Action> realActions = game.GetLimitedActions(_depth);
-                    List<Action> abstractActions = AbstractActions(game);
+                    List<Action> abstractActions = game.AbstractActions();
                     for (int i = 0; i < abstractActions.Count; ++i)
                     {
-                        Action realAction = AbstractToReal(abstractActions[i], realActions);
-
                         Game newGame = game.Clone();
-                        newGame.Play(realAction, abstractActions[i]);
+                        newGame.Play(abstractActions[i]);
 
                         string newKey = _infoset.FromGame(newGame).ToString();
                         double childUtil;
@@ -498,7 +394,7 @@ public class Solver
             if (it % 100 == 0)
             {
                 Console.WriteLine($"Missed {ToResult().Missed()}");
-                ToResult().Save("result.json");
+                ToResult().Save("result2.json");
             }
         }
     }

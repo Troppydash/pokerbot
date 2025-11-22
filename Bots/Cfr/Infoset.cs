@@ -83,7 +83,7 @@ public class Infoset
         {
             foreach (var point in entry.Value)
             {
-                _holeCluster[Card.HashDeck(point.Hole)] = entry.Key;
+                _holeCluster[Card.HashDeck(point.Hole!)] = entry.Key;
             }
         }
 
@@ -91,7 +91,7 @@ public class Infoset
         {
             foreach (var point in entry.Value)
             {
-                _preflopCluster[Card.HashDeck(point.Visible)] = entry.Key;
+                _preflopCluster[Card.HashDeck(point.Visible!)] = entry.Key;
             }
         }
 
@@ -99,7 +99,7 @@ public class Infoset
         {
             foreach (var point in entry.Value)
             {
-                _flopCluster[Card.HashDeck(point.Visible)] = entry.Key;
+                _flopCluster[Card.HashDeck(point.Visible!)] = entry.Key;
             }
         }
 
@@ -107,7 +107,7 @@ public class Infoset
         {
             foreach (var point in entry.Value)
             {
-                _turnCluster[Card.HashDeck(point.Visible)] = entry.Key;
+                _turnCluster[Card.HashDeck(point.Visible!)] = entry.Key;
             }
         }
 
@@ -115,7 +115,7 @@ public class Infoset
         {
             foreach (var point in entry.Value)
             {
-                _riverCluster[Card.HashDeck(point.Visible)] = entry.Key;
+                _riverCluster[Card.HashDeck(point.Visible!)] = entry.Key;
             }
         }
     }
@@ -145,7 +145,7 @@ public class Infoset
     public Entry FromGame(Game game)
     {
         var state = game.GetState();
-        return Lookup(state.Street, state.Index, state.Hand, state.River, game.GetAbstractStreetHistory());
+        return Lookup(state.Street, state.Index, state.Hand, state.River, state.History);
     }
 
     public IEnumerable<(Card[], Card[], Card[])> AllStarters()
@@ -153,14 +153,14 @@ public class Infoset
         // need to generate all hole/public cluster pairs
         foreach (var sbHole in _holeMap)
         {
-            Card[] sbh = sbHole.Value[0].Hole;
+            Card[] sbh = sbHole.Value[0].Hole!;
 
             foreach (var bbHole in _holeMap)
             {
                 foreach (var bbHoleEmd in bbHole.Value)
                 {
                     // ensure sbh and bbh are different
-                    Card[] bbh = bbHoleEmd.Hole;
+                    Card[] bbh = bbHoleEmd.Hole!;
                     if (!Helper.Distinct(sbh, bbh)) continue;
 
                     Card[] combined = sbh.Concat(bbh).ToArray();
@@ -172,10 +172,10 @@ public class Infoset
                             // ensure no conflicts
                             foreach (var cluster in emdCluster.Value)
                             {
-                                if (!Helper.Distinct(combined, cluster.Visible)) continue;
+                                if (!Helper.Distinct(combined, cluster.Visible!)) continue;
 
                                 Card[] remain = Helper.SelectRemain(combined,
-                                    5 - cluster.Visible.Length);
+                                    5 - cluster.Visible!.Length);
 
                                 yield return (sbh, bbh, cluster.Visible.Concat(remain).ToArray());
                                 break;
@@ -210,7 +210,8 @@ public class Infoset
                             3 => _flopMap,
                             4 => _turnMap,
                             5 => _riverMap,
-                            6 => _riverMap
+                            6 => _riverMap,
+                            _ => throw new ArgumentOutOfRangeException()
                         };
                         foreach (var visible in choice)
                         {
