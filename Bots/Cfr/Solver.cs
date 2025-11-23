@@ -101,6 +101,11 @@ public class Solver
 
     public class Result
     {
+        public class Deserialize
+        {
+            public Dictionary<string, double[]> Inference { get; set; }
+        }
+
         public Dictionary<string, double[]> Inference { get; }
 
         private Infoset _infoset;
@@ -115,6 +120,13 @@ public class Solver
         {
             string output = JsonSerializer.Serialize(this);
             File.WriteAllText(filename, output);
+        }
+
+        public static Result Load(string filename, Infoset infoset)
+        {
+            string text = File.ReadAllText(filename);
+            var de = JsonSerializer.Deserialize<Deserialize>(text)!;
+            return new Result(de.Inference, infoset);
         }
 
         public int Missed()

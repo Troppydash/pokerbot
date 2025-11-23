@@ -511,6 +511,8 @@ public class Game
         /// </summary>
         public readonly int Pot;
 
+        public readonly int LastIncrement;
+
         /// <summary>
         /// Public cards
         /// </summary>
@@ -526,7 +528,15 @@ public class Game
         /// </summary>
         public readonly List<Action> History;
 
-        public State(int index, int street, int raise, int[] raised, bool[] hasChecked, int[] money, int pot,
+        public State(
+            int index,
+            int street,
+            int raise,
+            int[] raised,
+            bool[] hasChecked,
+            int[] money,
+            int pot,
+            int lastIncrement,
             Card[] river,
             Card[] hand,
             List<Action> history)
@@ -538,6 +548,7 @@ public class Game
             Checked = hasChecked;
             Money = money;
             Pot = pot;
+            LastIncrement = lastIncrement;
             River = river;
             Hand = hand;
             History = history.GetRange(0, history.Count);
@@ -769,7 +780,7 @@ public class Game
     public virtual State GetState()
     {
         return new State(_turn, _riverCards, _raise, _raised, _checked, _money, _pot,
-            _hands.Skip(RiverHandOffset).Take(int.Min(5, _riverCards)).ToArray(),
+            _lastIncrement, _hands.Skip(RiverHandOffset).Take(int.Min(5, _riverCards)).ToArray(),
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
 

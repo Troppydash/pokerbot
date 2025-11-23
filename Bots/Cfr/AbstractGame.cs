@@ -19,6 +19,21 @@ public class AbstractGame : Game
         _abstractHistory = abstractHistory;
     }
 
+    public static AbstractGame FromState(State state)
+    {
+        List<Action> abstractHistory = [];
+        foreach (var action in state.History.TakeLast(3))
+        {
+            abstractHistory.Add(RealToAbstract(action, ValidActions));
+            // Console.WriteLine($"action {action} {action.Repr()}, selected {abstractHistory.Last()} {abstractHistory.Last().Repr()}");
+        }
+
+        return new AbstractGame(
+            state.Hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, 0, state.Checked,
+            state.River.Length, [], state.History, abstractHistory
+        );
+    }
+
     public override AbstractGame Clone()
     {
         return new AbstractGame(
@@ -37,10 +52,8 @@ public class AbstractGame : Game
         );
     }
 
-    private Action AbstractToReal(Action @abstract)
+    public static Action AbstractToReal(Action @abstract, List<Action> actions)
     {
-        var actions = GetActions();
-
         // find the closest
         if (@abstract.IsFold())
         {
@@ -73,7 +86,7 @@ public class AbstractGame : Game
         return best;
     }
 
-    private Action RealToAbstract(Action real, List<Action> actions)
+    public static Action RealToAbstract(Action real, List<Action> actions)
     {
         // find the closest
         if (real.IsFold())
@@ -91,7 +104,7 @@ public class AbstractGame : Game
             return actions.Last();
         }
 
-        Action best = actions[2];
+        Action best = actions[0];
         double diff = Double.MaxValue;
         for (int i = 2; i < actions.Count - 1; ++i)
         {
@@ -144,6 +157,7 @@ public class AbstractGame : Game
             state.Checked,
             state.Money,
             state.Pot,
+            state.LastIncrement,
             state.River,
             state.Hand,
             _abstractHistory);
@@ -152,7 +166,7 @@ public class AbstractGame : Game
     public override void Play(Action abstractAction)
     {
         // convert to real action
-        var action = AbstractToReal(abstractAction);
+        var action = AbstractToReal(abstractAction, GetActions());
         base.Play(action);
 
         // update abstract history

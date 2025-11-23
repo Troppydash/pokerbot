@@ -18,4 +18,7 @@ Information set
         - bins are probability ranges (10)
         - heights are the proportion of equities (against random opp hand) in range (50x49x1000 samples)
     - clustered into 20 groups
-- Bets (fold, check, raise, all-in)
+- Bets
+    - Fold, Check, All-in
+    - Raise 30%, 100%, 200% pot
+    - Max length of 4 (folding or checking after 3)
