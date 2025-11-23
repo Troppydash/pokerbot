@@ -125,8 +125,9 @@ public class Card
 public class Action
 {
     public const int FoldFlag = 1;
-    public const int AllinFlag = 2;
-    public const int CheckFlag = 4;
+    // CALL and CHECK
+    public const int CheckFlag = 2;
+    public const int AllinFlag = 4;
 
     /// If zero, a check.
     /// Otherwise, a call/raise
@@ -556,7 +557,7 @@ public class Game
     }
 
     // rule constants
-    public const int AllInAmount = 4000;
+    public const int AllInAmount = 1000;
     public const int BbAmount = 20;
 
     // player indices
@@ -759,7 +760,6 @@ public class Game
 
         // add raise
         int increment = _lastIncrement == 0 ? BbAmount : _lastIncrement;
-        int lastAmount = 0;
         while (true)
         {
             int amount = _raise + increment - _raised[_turn];
@@ -767,7 +767,6 @@ public class Game
                 break;
 
             actions.Add(Action.Raise(_pot, amount, 0));
-            lastAmount = amount;
             increment += BbAmount;
         }
 
@@ -832,8 +831,6 @@ public class Game
     {
         _history.Add(action);
         _streetHistory.Add(action);
-        // if (abstractAction != null)
-        //     _abstractStreetHistory.Add(abstractAction);
 
         // do nothing on fold
         if (action.IsFold())
@@ -892,7 +889,6 @@ public class Game
                 _raise = 0;
                 _lastIncrement = 0;
                 _streetHistory = [];
-                // _abstractStreetHistory = [];
             }
             else
             {

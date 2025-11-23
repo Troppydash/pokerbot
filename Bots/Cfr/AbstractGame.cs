@@ -25,12 +25,14 @@ public class AbstractGame : Game
         foreach (var action in state.History.TakeLast(3))
         {
             abstractHistory.Add(RealToAbstract(action, ValidActions));
-            // Console.WriteLine($"action {action} {action.Repr()}, selected {abstractHistory.Last()} {abstractHistory.Last().Repr()}");
         }
 
+        Card[] hand = new Card[Card.NumberRanks * Card.NumberSuits];
+        state.Hand.CopyTo(hand, state.Index == 0 ? Game.SbHandOffset : Game.BbHandOffset);
+        state.River.CopyTo(hand, Game.RiverHandOffset);
         return new AbstractGame(
-            state.Hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, 0, state.Checked,
-            state.River.Length, [], state.History, abstractHistory
+            hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, 0, state.Checked,
+            state.River.Length, state.History, state.History, abstractHistory
         );
     }
 
@@ -70,9 +72,9 @@ public class AbstractGame : Game
             return actions.Last();
         }
 
-        Action best = actions[2];
+        Action best = actions[1];
         double diff = Double.MaxValue;
-        for (int i = 2; i < actions.Count - 1; ++i)
+        for (int i = 2; i < actions.Count; ++i)
         {
             var action = actions[i];
             double newDiff = double.Abs(action.Proportion() - @abstract.Proportion());
@@ -104,9 +106,9 @@ public class AbstractGame : Game
             return actions.Last();
         }
 
-        Action best = actions[0];
+        Action best = actions[1];
         double diff = Double.MaxValue;
-        for (int i = 2; i < actions.Count - 1; ++i)
+        for (int i = 2; i < actions.Count; ++i)
         {
             var action = actions[i];
             double newDiff = double.Abs(action.Proportion() - real.Proportion());
@@ -123,17 +125,17 @@ public class AbstractGame : Game
     public static List<Action> ValidActions =
     [
         Action.Fold(10),
-        Action.Raise(10, 0, Action.CheckFlag),
+        Action.Raise(10, 10, Action.CheckFlag),
         Action.Raise(10, 3, 0),
         Action.Raise(10, 10, 0),
-        // Action.Raise(10, 20, 0),
+        Action.Raise(10, 20, 0),
         Action.Raise(10, 100, Action.AllinFlag),
     ];
 
     public static List<Action> LimitActions =
     [
         Action.Fold(10),
-        Action.Raise(10, 0, Action.CheckFlag)
+        Action.Raise(10, 10, Action.CheckFlag)
     ];
 
     public List<Action> AbstractActions()
@@ -166,7 +168,7 @@ public class AbstractGame : Game
     public override void Play(Action abstractAction)
     {
         // convert to real action
-        var action = AbstractToReal(abstractAction, GetActions());
+        var action = AbstractToReal(abstractAction, base.GetActions());
         base.Play(action);
 
         // update abstract history

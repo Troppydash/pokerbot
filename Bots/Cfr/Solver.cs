@@ -37,6 +37,8 @@ public class Solver
 
         public double[] GetStrategy()
         {
+            double eps = 0.0001;
+            
             double total = 0.0;
             for (int i = 0; i < Actions; ++i)
             {
@@ -44,7 +46,7 @@ public class Solver
                 total += Strategy[i];
             }
 
-            if (total == 0.0)
+            if (total == 0.0 || Random.Shared.NextDouble() < eps)
             {
                 // uniform strategy
                 for (int i = 0; i < Actions; ++i)
@@ -104,15 +106,18 @@ public class Solver
         public class Deserialize
         {
             public Dictionary<string, double[]> Inference { get; set; }
+            public Dictionary<string, int> Hits { get; }
         }
 
         public Dictionary<string, double[]> Inference { get; }
+        public Dictionary<string, int> Hits { get; }
 
         private Infoset _infoset;
 
-        public Result(Dictionary<string, double[]> inference, Infoset infoset)
+        public Result(Dictionary<string, double[]> inference, Dictionary<string, int> hits, Infoset infoset)
         {
             Inference = inference;
+            Hits = hits;
             _infoset = infoset;
         }
 
@@ -126,7 +131,7 @@ public class Solver
         {
             string text = File.ReadAllText(filename);
             var de = JsonSerializer.Deserialize<Deserialize>(text)!;
-            return new Result(de.Inference, infoset);
+            return new Result(de.Inference, de.Hits, infoset);
         }
 
         public int Missed()
@@ -150,7 +155,7 @@ public class Solver
                 string key = entry.ToString();
                 if (Inference.ContainsKey(key))
                 {
-                    Console.Write($"{key}: ");
+                    Console.Write($"{key} W {Hits[key]}: ");
                     foreach (var d in Inference[key])
                     {
                         Console.Write($"{d}, ");
@@ -165,12 +170,14 @@ public class Solver
 
     private Infoset _infoset;
     private Dictionary<string, Node> _states;
+    private Dictionary<string, int> _hits;
     private Dictionary<string, AbstractGame> _suspense;
 
     public Solver(Infoset infoset)
     {
         _infoset = infoset;
         _states = new Dictionary<string, Node>();
+        _hits = new Dictionary<string, int>();
         _suspense = new Dictionary<string, AbstractGame>();
     }
 
@@ -252,20 +259,29 @@ public class Solver
     public Result ToResult()
     {
         Dictionary<string, double[]> inference = new Dictionary<string, double[]>();
+        Dictionary<string, int> hits = new Dictionary<string, int>();
         foreach (var entry in _states)
         {
             double[] strategy = entry.Value.AverageStrategy();
-            if (double.Abs(strategy[0] - 1.0 / strategy.Length) > 0.001)
-                inference.Add(entry.Key, entry.Value.AverageStrategy());
+            foreach (var s in strategy)
+            {
+                if (double.Abs(s - 1.0 / strategy.Length) > 0.0001)
+                {
+                    hits.Add(entry.Key, _hits[entry.Key]);
+                    inference.Add(entry.Key, entry.Value.AverageStrategy());
+                    break;
+                }
+            }
         }
 
-        return new Result(inference, _infoset);
+        return new Result(inference, hits, _infoset);
     }
 
     public void Simulate(int iters, int seed)
     {
         Console.WriteLine("Generating States");
         _states = new Dictionary<string, Node>();
+        _hits = new Dictionary<string, int>();
 
         List<Infoset.Entry> entries = _infoset.Forward(AbstractGame.Depth, AbstractGame.ValidActions).ToList();
         List<Infoset.Entry> reversedEntries = [..entries];
@@ -280,6 +296,7 @@ public class Solver
             }
 
             _states[entry.ToString()] = new Node(entry, actions);
+            _hits[entry.ToString()] = 0;
         }
 
         Random rng = new Random(seed);
@@ -297,7 +314,6 @@ public class Solver
                 _suspense[startKey] = start;
                 _states[startKey].ReachProb = [1.0, 1.0];
 
-                // direct enumeration
                 foreach (var entry in entries)
                 {
                     string key = entry.ToString();
@@ -314,13 +330,19 @@ public class Solver
                         continue;
 
                     // visit children
+                    
+                    // set fold to zero if can check
+                    if (game.GetActions()[1].Amount == 0)
+                    {
+                        node.RegretSum[0] = 0;
+                        node.StrategySum[0] = 0;
+                    }
+                    
                     double[] strategy = node.GetStrategy();
-                    // List<Action> realActions = game.GetLimitedActions(_depth);
                     List<Action> abstractActions = game.AbstractActions();
+                    
                     for (int i = 0; i < abstractActions.Count; ++i)
                     {
-                        // Action realAction = AbstractToReal(abstractActions[i], realActions);
-
                         AbstractGame newGame = game.Clone();
                         newGame.Play(abstractActions[i]);
 
@@ -337,7 +359,9 @@ public class Solver
                             _states[newKey].ReachProb[Node.Opponent] += strategy[i] * node.ReachProb[Node.Self];
                         }
 
-                        _suspense[newKey] = newGame;
+                        // pick the first game
+                        if (!_suspense.ContainsKey(newKey))
+                            _suspense[newKey] = newGame;
                     }
                 }
             }
@@ -352,6 +376,7 @@ public class Solver
                     if (!_suspense.ContainsKey(key))
                         continue;
 
+                    _hits[key] += 1;
                     AbstractGame game = _suspense[key];
                     Node node = _states[key];
 
@@ -371,21 +396,21 @@ public class Solver
                     List<Action> abstractActions = game.AbstractActions();
                     for (int i = 0; i < abstractActions.Count; ++i)
                     {
-                        Game newGame = game.Clone();
+                        AbstractGame newGame = game.Clone();
                         newGame.Play(abstractActions[i]);
 
                         string newKey = _infoset.FromGame(newGame).ToString();
                         double childUtil;
                         if (game.GetTurn() == newGame.GetTurn())
                         {
-                            childUtil = strategy[i] * _states[newKey].Util;
+                            childUtil = _states[newKey].Util;
                         }
                         else
                         {
-                            childUtil = -strategy[i] * _states[newKey].Util;
+                            childUtil = -_states[newKey].Util;
                         }
 
-                        node.Util += childUtil;
+                        node.Util += strategy[i] * childUtil;
                         regrets[i] = childUtil;
                     }
 
@@ -400,13 +425,24 @@ public class Solver
                 }
             }
 
+            if (it == 10000)
+            {
+                foreach (var entry in entries)
+                {
+                    string key = entry.ToString();
+                    for (int i = 0; i < _states[key].StrategySum.Length; ++i)
+                        _states[key].StrategySum[i] = 0;
+                }
+            }
+
+
             if (it % 1000 == 0)
                 ToResult().Display();
 
             if (it % 100 == 0)
             {
                 Console.WriteLine($"Missed {ToResult().Missed()}");
-                ToResult().Save("result2.json");
+                ToResult().Save("result4.json");
             }
         }
     }

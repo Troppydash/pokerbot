@@ -14,16 +14,18 @@ public class Infoset
         public int Position { get; set; }
         public int PublicClusterId { get; set; }
         public int HoleClusterId { get; set; }
+        public int EffectiveStack { get; set; }
         public List<Action> Bets { get; set; }
 
         private string? _string;
 
-        public Entry(int street, int position, int publicClusterId, int holeClusterId, List<Action> bets)
+        public Entry(int street, int position, int publicClusterId, int holeClusterId, int stack, List<Action> bets)
         {
             Street = street;
             Position = position;
             PublicClusterId = publicClusterId;
             HoleClusterId = holeClusterId;
+            EffectiveStack = stack;
             Bets = bets;
 
             _string = null;
@@ -33,7 +35,7 @@ public class Infoset
         {
             if (_string == null)
             {
-                _string = $"{Street}/{Position}/{PublicClusterId}/{HoleClusterId}/";
+                _string = $"{Street}/{Position}/{PublicClusterId}/{HoleClusterId}/{EffectiveStack}/";
                 // list of raises
                 foreach (var action in Bets)
                 {
@@ -125,6 +127,7 @@ public class Infoset
         int position,
         Card[] hole,
         Card[] visible,
+        int stack,
         List<Action> bets
     )
     {
@@ -139,13 +142,16 @@ public class Infoset
             _ => throw new Exception("invalid visible card length")
         };
 
-        return new Entry(street, position, publicCluster, holeCluster, bets);
+        // partition stacks
+        int abstractStack = stack / 200;
+        return new Entry(street, position, publicCluster, holeCluster, abstractStack, bets);
     }
 
     public Entry FromGame(Game game)
     {
         var state = game.GetState();
-        return Lookup(state.Street, state.Index, state.Hand, state.River, state.History);
+        return Lookup(state.Street, state.Index, state.Hand, state.River, int.Min(state.Money[0], state.Money[1]),
+            state.History);
     }
 
     public IEnumerable<(Card[], Card[], Card[])> AllStarters()
@@ -215,19 +221,30 @@ public class Infoset
                         };
                         foreach (var visible in choice)
                         {
-                            foreach (int position in (int[]) [0, 1])
+                            foreach (int stack in (int[]) [0, 1, 2, 3, 4])
                             {
-                                yield return new Entry(street, position, visible.Key, hole.Key, list);
+                                int position = count % 2;
+                                yield return new Entry(street, position, visible.Key, hole.Key, stack, list);
+                                if (list.Count > 0 && list.Last().IsFold())
+                                {
+                                    yield return new Entry(street, 1 - position, visible.Key, hole.Key, stack, list);
+                                }
                             }
                         }
                     }
                 }
 
+                if (street == 6)
+                    break;
+                
                 List<List<Action>> newActions = [];
                 foreach (var action in actions)
                 {
                     foreach (var valid in validActions)
                     {
+                        if (action.Count > 0 && action.Last().IsFold())
+                            continue;
+                        
                         newActions.Add([..action, valid]);
                     }
                 }
