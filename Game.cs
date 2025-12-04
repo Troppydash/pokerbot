@@ -117,6 +117,34 @@ public class Card
 
         return hash;
     }
+    
+    public static long HashDeck7(Card[] deck)
+    {
+        // sort by rank
+        Card[] sorted = deck.OrderBy(card => card.Rank).ToArray();
+
+        // suitMapping[suit] = newSuit
+        int nextSuit = 0;
+        int[] suitMapping = [-1, -1, -1, -1];
+
+        long hash = 0;
+        foreach (var card in sorted)
+        {
+            if (suitMapping[card.Suit] == -1)
+            {
+                suitMapping[card.Suit] = nextSuit;
+                nextSuit += 1;
+            }
+
+            hash = (hash * (NumberRanks * NumberSuits)) + suitMapping[card.Suit] * NumberRanks + card.Rank;
+            if (hash > 1L << 61)
+            {
+                throw new Exception("int overflow");
+            }
+        }
+
+        return hash;
+    }
 }
 
 /// <summary>

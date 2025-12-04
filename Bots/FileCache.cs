@@ -1,0 +1,18 @@
+using System.Text.Json;
+
+namespace PokerBot.Bots;
+
+public class FileCache
+{
+    public static T OptionalCompute<T>(string path, Func<T> compute)
+    {
+        if (File.Exists(path))
+        {
+            return JsonSerializer.Deserialize<T>(File.ReadAllText(path))!;
+        }
+
+        T result = compute();
+        File.WriteAllText(path, JsonSerializer.Serialize(result));
+        return result;
+    }
+}

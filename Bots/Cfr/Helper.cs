@@ -28,6 +28,65 @@ public class Helper
         return notChoose;
     }
 
+    public static long Snoob(long x)
+    {
+        long smallest = x & -x;
+        long ripple = x + smallest;
+        long ones = x ^ ripple;
+        ones = (ones >> 2) / smallest;
+        return ripple | ones;
+    }
+
+    public static IEnumerable<int[]> LazyCombinations(int n, int k)
+    {
+        int[] selected = new int[k];
+
+        long x = (1L << k) - 1;
+        long limit = 1L << n;
+        while (x < limit)
+        {
+            long selection = x;
+            for (int i = 0; i < k; ++i)
+            {
+                selected[i] = (int)long.TrailingZeroCount(selection);
+                selection ^= 1L << selected[i];
+            }
+
+            yield return selected;
+
+            x = Snoob(x);
+        }
+    }
+
+    public static IEnumerable<Card[]> SelectCombinations(Card[] population, int k)
+    {
+        Card[] selected = new Card[k];
+        foreach (var comb in LazyCombinations(population.Length, k))
+        {
+            for (int i = 0; i < k; ++i)
+            {
+                selected[i] = population[comb[i]];
+            }
+
+            yield return selected;
+        }
+    }
+
+    public static Card[] RemoveCards(Card[] population, Card[] toRemove)
+    {
+        Card[] newCards = new Card[population.Length - toRemove.Length];
+        int k = 0;
+        foreach (var card in population)
+        {
+            if (!toRemove.Contains(card))
+            {
+                newCards[k++] = card;
+            }
+        }
+
+        return newCards;
+    }
+
     public static IEnumerable<(Card[], Card[])> AllSeeds()
     {
         Card[] cards = Card.AllCards();
@@ -52,8 +111,7 @@ public class Helper
             }
         }
     }
-    
-    
+
     public static Card[] SelectRemain(Card[] exist, int count)
     {
         Card[] cards = Card.AllCards();
