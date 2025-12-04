@@ -93,7 +93,7 @@ public class Card
     public static int HashDeck(Card[] deck)
     {
         // sort by rank
-        Card[] sorted = deck.OrderBy(card => card.Rank).ToArray();
+        Card[] sorted = deck.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
 
         // suitMapping[suit] = newSuit
         int nextSuit = 0;
@@ -121,7 +121,7 @@ public class Card
     public static long HashDeck7(Card[] deck)
     {
         // sort by rank
-        Card[] sorted = deck.OrderBy(card => card.Rank).ToArray();
+        Card[] sorted = deck.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
 
         // suitMapping[suit] = newSuit
         int nextSuit = 0;

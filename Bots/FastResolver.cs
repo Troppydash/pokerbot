@@ -124,11 +124,11 @@ public class FastResolver
                     int count = 0;
                     foreach (var hands in Helper.SelectCombinations(Card.AllCards(), 7))
                     {
+                        count += 1;
                         long hash = Card.HashDeck7(hands);
                         if (lookup.ContainsKey(hash))
                             continue;
 
-                        count += 1;
                         Console.WriteLine($"Progress {(double)count / 133784560 * 100}%");
 
                         int bestValue = 0;
@@ -248,9 +248,33 @@ public class FastResolver
             return HighCard + selected.Last().Rank;
         }
 
-        public int Lookup(Card[] hand)
+        public int CompareHands(Card[] river, Card[] p0, Card[] p1)
         {
-            return _7handLookup[Card.HashDeck7(hand)];
+            int highCard0 = int.Max(p0[0].Rank, p0[1].Rank);
+            int lowCard0 = int.Min(p0[0].Rank, p0[1].Rank);
+            int highCard1 = int.Max(p1[0].Rank, p1[1].Rank);
+            int lowCard1 = int.Min(p1[0].Rank, p1[1].Rank);
+            int high0 = highCard0 * Card.NumberRanks + lowCard0;
+            int high1 = highCard1 * Card.NumberRanks + lowCard1;
+
+            Card[] cards = new Card[NumberCards];
+            river.CopyTo(cards, 0);
+            p0.CopyTo(cards, 5);
+            int value0 = _7handLookup[Card.HashDeck7(cards)] * Base + high0;
+            p1.CopyTo(cards, 5);
+            int value1 = _7handLookup[Card.HashDeck7(cards)] * Base + high1;
+
+            if (value0 == value1)
+            {
+                return Equal;
+            }
+
+            if (value0 < value1)
+            {
+                return Player1;
+            }
+
+            return Player0;
         }
     }
 

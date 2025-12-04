@@ -39,6 +39,12 @@ public class Helper
 
     public static IEnumerable<int[]> LazyCombinations(int n, int k)
     {
+        if (k == 0)
+        {
+            yield return [];
+            yield break;
+        }
+        
         int[] selected = new int[k];
 
         long x = (1L << k) - 1;
