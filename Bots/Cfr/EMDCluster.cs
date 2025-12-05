@@ -139,6 +139,49 @@ public class EmdCluster
         return finalClusters;
     }
 
+    public static EmdCluster ComputeEquityDistribution(Card[] hole, Card[] visible, int otherHandSamples,
+        int riverSamples, int bins)
+    {
+        Card[] remain = Helper.RemoveCards(Helper.RemoveCards(Card.AllCards(), hole), visible);
+
+        double[] equityDistribution = new double[bins + 1];
+        double binWidth = 1.0 / bins;
+
+        Card[] river = new Card[5];
+        visible.CopyTo(river, 0);
+
+        for (int i = 0; i < otherHandSamples; ++i)
+        {
+            var (oppHand, rest) = Helper.SampleCards(remain, 2);
+
+            int wins = 0;
+            for (int k = 0; k < riverSamples; ++k)
+            {
+                Random.Shared.Shuffle(rest);
+                for (int z = visible.Length; z < 5; ++z)
+                {
+                    river[z] = rest[z - visible.Length];
+                }
+
+                var result = FastResolver.Cached.GetInstance().CompareHands(
+                    river, hole, oppHand);
+                if (result == FastResolver.Player0)
+                    wins += 1;
+            }
+
+            double equity = (double)wins / riverSamples;
+            int bin = (int)Math.Floor(equity / binWidth);
+            equityDistribution[bin] += 1.0 / otherHandSamples;
+        }
+
+        return new EmdCluster
+        {
+            Hole = hole,
+            Visible = visible,
+            EquityDistribution = equityDistribution
+        };
+    }
+
     /// <summary>
     /// Compute the equity distribution for hole and visible cards
     /// </summary>
@@ -264,38 +307,39 @@ public class EmdCluster
     /// <param name="samples"></param>
     /// <param name="bins"></param>
     /// <returns></returns>
-    public static List<EmdCluster> MakePrivateClusterPoints(int k, int samples, int bins)
+    public static List<EmdCluster> MakePrivateClusterPoints(int k, int samples, int riverSamples, int bins)
     {
         Card[] cards = Card.AllCards();
         List<EmdCluster> clusters = [];
 
-        Dictionary<(int, int), EmdCluster> cached = new Dictionary<(int, int), EmdCluster>();
+        Dictionary<long, EmdCluster> cached = new Dictionary<long, EmdCluster>();
 
         int progress = 0;
-        long total = Helper.Choose(52, 2 + k);
+        long total = Helper.Choose(52, 2) * Helper.Choose(50, k);
 
         Console.WriteLine($"Building Private Cluster Points with {k} open cards");
+        
+        // TODO: multithread this
+        
         // iterate all hole cards
         foreach (var holeCards in Helper.SelectCombinations(cards, 2))
         {
-            progress += 1;
-            Console.Write($"\rPrivate Cluster {k}, Progress {(double)progress / total * 100}%");
-
             Card[] remain = Helper.RemoveCards(cards, holeCards);
 
             // for each public cards
             foreach (var publicCards in Helper.SelectCombinations(remain, k))
             {
-                int holeHash = Card.HashDeck(holeCards);
-                int publicHash = Card.HashDeck(publicCards);
+                progress += 1;
+                Console.Write($"\rPrivate Cluster {k}, Progress {(double)progress / total * 100}%");
 
-                if (cached.ContainsKey((holeHash, publicHash)))
+                long hash = Card.HashDeck7(holeCards, publicCards);
+                if (cached.ContainsKey(hash))
                     continue;
 
                 // compute equity distribution
-                EmdCluster distribution = ComputeEquityDistribution(holeCards, publicCards, samples, bins);
+                EmdCluster distribution = ComputeEquityDistribution(holeCards, publicCards, samples, riverSamples, bins);
                 clusters.Add(distribution);
-                cached.Add((holeHash, publicHash), distribution);
+                cached.Add(hash, distribution);
             }
         }
 
@@ -330,17 +374,18 @@ public class EmdCluster
     )
     {
         List<EmdCluster> publicCluster = [];
-        Dictionary<int, EmdCluster> cached = new Dictionary<int, EmdCluster>();
+        Dictionary<long, EmdCluster> cached = new Dictionary<long, EmdCluster>();
 
         // all combinations of size k
         int count = 0;
         long total = Helper.Choose(52, k);
+        // TODO: multithread this
         foreach (var selected in Helper.SelectCombinations(Card.AllCards(), k))
         {
             count += 1;
             Console.Write($"\r{k}th Street, Progress {(double)count / total * 100}%");
 
-            int hash = Card.HashDeck(selected);
+            long hash = Card.HashDeck(selected);
             if (cached.ContainsKey(hash))
                 continue;
 
@@ -401,7 +446,7 @@ public class EmdCluster
 
         Card[] cards = Card.AllCards();
 
-        Dictionary<int, EmdCluster> cached = new Dictionary<int, EmdCluster>();
+        Dictionary<long, EmdCluster> cached = new Dictionary<long, EmdCluster>();
 
         // iterate all hole cards
         int progress = 0;
@@ -414,7 +459,7 @@ public class EmdCluster
                 Console.WriteLine($"Hole card {i}/{j}, {(double)progress / total}");
 
                 Card[] hole = [cards[i], cards[j]];
-                int hash = Card.HashDeck(hole);
+                long hash = Card.HashDeck(hole);
                 if (cached.TryGetValue(hash, out var cachedCluster))
                 {
                     privateCluster.Add(
@@ -601,7 +646,7 @@ public class EmdCluster
         // iterate over all streets
         foreach (var k in (int[])[0, 3, 4, 5])
         {
-            Dictionary<int, EmdCluster> cached = new Dictionary<int, EmdCluster>();
+            Dictionary<long, EmdCluster> cached = new Dictionary<long, EmdCluster>();
 
             // all combinations of size k
             int f = 0;
@@ -617,7 +662,7 @@ public class EmdCluster
                     selected[i] = cards[choices[i]];
                 }
 
-                int hash = Card.HashDeck(selected);
+                long hash = Card.HashDeck(selected);
                 if (cached.ContainsKey(hash))
                 {
                     // ignore
@@ -686,7 +731,7 @@ public class EmdCluster
         // iterate over all streets
         foreach (var k in (int[])[0, 3, 4, 5])
         {
-            Dictionary<int, EmdCluster> cache = new Dictionary<int, EmdCluster>();
+            Dictionary<long, EmdCluster> cache = new Dictionary<long, EmdCluster>();
             foreach (var cluster in points)
             {
                 if (cluster.Visible!.Length == k)
@@ -705,7 +750,7 @@ public class EmdCluster
                     selected[i] = cards[choices[i]];
                 }
 
-                int hash = Card.HashDeck(selected);
+                long hash = Card.HashDeck(selected);
                 completePoints.Add(new EmdCluster()
                 {
                     Visible = selected,
@@ -828,7 +873,7 @@ public class EmdCluster
 
         // output
 
-        Dictionary<int, EmdCluster> cache = new Dictionary<int, EmdCluster>();
+        Dictionary<long, EmdCluster> cache = new Dictionary<long, EmdCluster>();
 
         Dictionary<int, List<EmdCluster>> finalClusters = new Dictionary<int, List<EmdCluster>>();
         for (int i = 0; i < clusters; ++i)
@@ -839,7 +884,7 @@ public class EmdCluster
         for (int i = 0; i < centroidMap.Length; ++i)
         {
             // centroidMap[pointIndex] = centroid index
-            int hash = Card.HashDeck(filteredPoints[i].Visible!);
+            long hash = Card.HashDeck(filteredPoints[i].Visible!);
             if (!cache.ContainsKey(hash))
             {
                 finalClusters[centroidMap[i]].Add(filteredPoints[i]);
@@ -862,7 +907,7 @@ public class EmdCluster
         Dictionary<int, List<EmdCluster>> completeGroups = new Dictionary<int, List<EmdCluster>>();
 
         // create mapping from hash to groupId
-        Dictionary<int, (int, EmdCluster)> hashToGroup = new Dictionary<int, (int, EmdCluster)>();
+        Dictionary<long, (int, EmdCluster)> hashToGroup = new Dictionary<long, (int, EmdCluster)>();
         foreach (var entry in groups)
         {
             completeGroups[entry.Key] = [];

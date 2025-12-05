@@ -73,9 +73,9 @@ public class Card
     /// </summary>
     /// <param name="count">Number of cards</param>
     /// <returns>Highest hash</returns>
-    public static int MaxHashDeck(int count)
+    public static long MaxHashDeck(int count)
     {
-        int hash = 1;
+        long hash = 1;
         for (int i = 0; i < count; ++i)
         {
             hash *= NumberRanks * NumberSuits;
@@ -90,7 +90,7 @@ public class Card
     /// <param name="deck">A list of cards</param>
     /// <returns>Unique hash</returns>
     /// <exception cref="Exception">If the hash is not unique (number too large)</exception>
-    public static int HashDeck(Card[] deck)
+    public static long HashDeck(Card[] deck)
     {
         // sort by rank
         Card[] sorted = deck.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
@@ -99,7 +99,7 @@ public class Card
         int nextSuit = 0;
         int[] suitMapping = [-1, -1, -1, -1];
 
-        int hash = 0;
+        long hash = 0;
         foreach (var card in sorted)
         {
             if (suitMapping[card.Suit] == -1)
@@ -109,7 +109,7 @@ public class Card
             }
 
             hash = (hash * (NumberRanks * NumberSuits)) + suitMapping[card.Suit] * NumberRanks + card.Rank;
-            if (hash > 1 << 30)
+            if (hash > 1L << 60)
             {
                 throw new Exception("int overflow");
             }
@@ -118,11 +118,12 @@ public class Card
         return hash;
     }
     
-    public static long HashDeck7(Card[] deck)
+    public static long HashDeck7(Card[] hole, Card[] river)
     {
         // sort by rank
-        Card[] sorted = deck.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
-
+        Card[] sorted = hole.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
+        sorted = sorted.Concat(river.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray()).ToArray();
+        
         // suitMapping[suit] = newSuit
         int nextSuit = 0;
         int[] suitMapping = [-1, -1, -1, -1];

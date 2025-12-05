@@ -12,9 +12,10 @@ public class Helper
             r *= n--;
             r /= d;
         }
+
         return r;
     }
-    
+
     public static List<List<int>> Combinations(int n, int k, int offset = 0)
     {
         if (k == 0)
@@ -57,7 +58,7 @@ public class Helper
             yield return [];
             yield break;
         }
-        
+
         int[] selected = new int[k];
 
         long x = (1L << k) - 1;
@@ -87,7 +88,7 @@ public class Helper
                 selected[i] = population[comb[i]];
             }
 
-            yield return selected;
+            yield return (Card[]) selected.Clone();
         }
     }
 
@@ -104,6 +105,13 @@ public class Helper
         }
 
         return newCards;
+    }
+
+
+    public static (Card[], Card[]) SampleCards(Card[] population, int k)
+    {
+        Random.Shared.Shuffle(population);
+        return (population.Take(k).ToArray(), population.Skip(k).ToArray());
     }
 
     public static IEnumerable<(Card[], Card[])> AllSeeds()

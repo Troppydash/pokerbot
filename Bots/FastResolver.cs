@@ -75,7 +75,7 @@ public class FastResolver
     public class Cached
     {
         private static Cached? _instance = null;
-        private Dictionary<int, int> _5handLookup;
+        private Dictionary<long, int> _5handLookup;
         private Dictionary<long, int> _7handLookup;
 
         public const string FIVE_FILE = "fastResolverCache5Hand.json";
@@ -101,10 +101,10 @@ public class FastResolver
                 () =>
                 {
                     Console.WriteLine("Building 5 hand");
-                    var lookup = new Dictionary<int, int>();
+                    var lookup = new Dictionary<long, int>();
                     foreach (var hands in Helper.SelectCombinations(Card.AllCards(), 5))
                     {
-                        int hash = Card.HashDeck(hands);
+                        long hash = Card.HashDeck(hands);
                         if (lookup.ContainsKey(hash))
                             continue;
 
@@ -125,7 +125,7 @@ public class FastResolver
                     foreach (var hands in Helper.SelectCombinations(Card.AllCards(), 7))
                     {
                         count += 1;
-                        long hash = Card.HashDeck7(hands);
+                        long hash = Card.HashDeck(hands);
                         if (lookup.ContainsKey(hash))
                             continue;
 
@@ -134,7 +134,7 @@ public class FastResolver
                         int bestValue = 0;
                         foreach (var selected in Helper.SelectCombinations(hands, 5))
                         {
-                            int h = Card.HashDeck(selected);
+                            long h = Card.HashDeck(selected);
                             bestValue = int.Max(bestValue, _5handLookup[h]);
                         }
 
@@ -260,9 +260,9 @@ public class FastResolver
             Card[] cards = new Card[NumberCards];
             river.CopyTo(cards, 0);
             p0.CopyTo(cards, 5);
-            int value0 = _7handLookup[Card.HashDeck7(cards)] * Base + high0;
+            int value0 = _7handLookup[Card.HashDeck(cards)] * Base + high0;
             p1.CopyTo(cards, 5);
-            int value1 = _7handLookup[Card.HashDeck7(cards)] * Base + high1;
+            int value1 = _7handLookup[Card.HashDeck(cards)] * Base + high1;
 
             if (value0 == value1)
             {
