@@ -2,6 +2,19 @@ namespace PokerBot.Bots.Cfr;
 
 public class Helper
 {
+    public static long Choose(int n, int k)
+    {
+        long r = 1;
+        long d;
+        if (k > n) return 0;
+        for (d = 1; d <= k; d++)
+        {
+            r *= n--;
+            r /= d;
+        }
+        return r;
+    }
+    
     public static List<List<int>> Combinations(int n, int k, int offset = 0)
     {
         if (k == 0)

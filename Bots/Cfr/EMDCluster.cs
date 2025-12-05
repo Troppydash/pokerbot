@@ -21,10 +21,129 @@ public class EmdCluster
     }
 
     /// <summary>
+    /// KMeans clustering algorithm
+    /// </summary>
+    /// <param name="points"></param>
+    /// <param name="clusters"></param>
+    /// <param name="iters"></param>
+    /// <returns></returns>
+    public static Dictionary<int, List<EmdCluster>> KMeans(
+        List<EmdCluster> points, int clusters, int iters
+    )
+    {
+        // use k mean clustering
+        int bins = points[0].EquityDistribution.Length;
+        EmdCluster[] centroids = new EmdCluster[clusters];
+        for (int i = 0; i < clusters; ++i)
+        {
+            int j = Random.Shared.Next(points.Count);
+            double[] newDist = new double[bins];
+            Array.Copy(points[j].EquityDistribution, newDist, bins);
+            centroids[i] = new EmdCluster()
+            {
+                Hole = null,
+                Visible = null,
+                EquityDistribution = newDist
+            };
+        }
+
+        int[] centroidMap = new int[points.Count];
+        for (int i = 0; i < points.Count; ++i)
+            centroidMap[i] = -1;
+
+        // iterate kmeans (update centroid map, update centroid point)
+        for (int it = 0; it < iters; ++it)
+        {
+            Console.WriteLine($"KMeans iter {it}/{iters}");
+
+            // update centroid map
+            bool changed = false;
+            for (int i = 0; i < points.Count; ++i)
+            {
+                int original = centroidMap[i];
+
+                // closest centroid
+                double closest = Double.MaxValue;
+                for (int j = 0; j < clusters; ++j)
+                {
+                    double dist = points[i].Distance(centroids[j]);
+                    if (dist < closest)
+                    {
+                        closest = dist;
+                        centroidMap[i] = j;
+                    }
+                }
+
+                if (centroidMap[i] != original)
+                    changed = true;
+            }
+
+            // early exit
+            if (!changed)
+                break;
+
+            // update centroid point
+            for (int i = 0; i < clusters; ++i)
+            {
+                int count = 0;
+
+                for (int k = 0; k < bins; ++k)
+                {
+                    centroids[i].EquityDistribution[k] = 0;
+                }
+
+                for (int j = 0; j < points.Count; ++j)
+                {
+                    if (centroidMap[j] == i)
+                    {
+                        for (int k = 0; k < bins; ++k)
+                        {
+                            centroids[i].EquityDistribution[k] += points[j].EquityDistribution[k];
+                        }
+
+                        count += 1;
+                    }
+                }
+
+                if (count > 0)
+                {
+                    for (int k = 0; k < bins; ++k)
+                    {
+                        centroids[i].EquityDistribution[k] /= count;
+                    }
+                }
+                else
+                {
+                    // choose a random point
+                    int p = Random.Shared.Next(points.Count);
+                    for (int z = 0; z < bins; ++z)
+                    {
+                        centroids[i].EquityDistribution[z] = points[p].EquityDistribution[z];
+                    }
+                }
+            }
+        }
+
+        Dictionary<int, List<EmdCluster>> finalClusters = new Dictionary<int, List<EmdCluster>>();
+        for (int i = 0; i < clusters; ++i)
+        {
+            finalClusters[i] = new List<EmdCluster>();
+        }
+
+        for (int i = 0; i < centroidMap.Length; ++i)
+        {
+            // centroidMap[pointIndex] = centroid index
+            finalClusters[centroidMap[i]].Add(points[i]);
+        }
+
+        return finalClusters;
+    }
+
+    /// <summary>
     /// Compute the equity distribution for hole and visible cards
     /// </summary>
     /// <returns></returns>
-    public static EmdCluster ComputeCluster(Card[] hole, Card[] visible, int samples, int bins)
+    public static EmdCluster ComputeEquityDistribution(Card[] hole, Card[] visible, int samples, int bins)
     {
         List<Card> remain = Card.AllCards().ToList();
         foreach (var card in hole)
@@ -58,7 +177,7 @@ public class EmdCluster
                         river[z] = others[z - visible.Length];
                     }
 
-                    var result = FastResolver.CompareHands(
+                    var result = FastResolver.Cached.GetInstance().CompareHands(
                         river, hole, oppHole);
                     if (result == FastResolver.Player0)
                         wins += 1;
@@ -81,7 +200,7 @@ public class EmdCluster
         };
     }
 
-    public static double ComputeEquity(Card[] hole, Card[] visible, int oppSamples, int samples)
+    public static double ComputeEquity(Card[] hole, Card[] visible, int otherHandSamples, int riverSamples)
     {
         List<Card> remain = Card.AllCards().ToList();
         foreach (var card in hole)
@@ -95,7 +214,7 @@ public class EmdCluster
         int n = remain.Count;
         double equity = 0.0;
 
-        for (int i = 0; i < oppSamples; ++i)
+        for (int i = 0; i < otherHandSamples; ++i)
         {
             int a = 0;
             int b = 0;
@@ -112,7 +231,7 @@ public class EmdCluster
             // compute estimated equity
             int wins = 0;
             Card[] others = remain.ToArray();
-            for (int k = 0; k < samples; ++k)
+            for (int k = 0; k < riverSamples; ++k)
             {
                 Random.Shared.Shuffle(others);
                 for (int z = visible.Length; z < 5; ++z)
@@ -132,10 +251,147 @@ public class EmdCluster
             remain.Add(oppHole[1]);
         }
 
-        equity /= (double)samples * oppSamples;
+        equity /= (double)riverSamples * otherHandSamples;
         return equity;
     }
 
+    #region Private
+
+    /// <summary>
+    /// Create private cluster points
+    /// </summary>
+    /// <param name="k"></param>
+    /// <param name="samples"></param>
+    /// <param name="bins"></param>
+    /// <returns></returns>
+    public static List<EmdCluster> MakePrivateClusterPoints(int k, int samples, int bins)
+    {
+        Card[] cards = Card.AllCards();
+        List<EmdCluster> clusters = [];
+
+        Dictionary<(int, int), EmdCluster> cached = new Dictionary<(int, int), EmdCluster>();
+
+        int progress = 0;
+        long total = Helper.Choose(52, 2 + k);
+
+        Console.WriteLine($"Building Private Cluster Points with {k} open cards");
+        // iterate all hole cards
+        foreach (var holeCards in Helper.SelectCombinations(cards, 2))
+        {
+            progress += 1;
+            Console.Write($"\rPrivate Cluster {k}, Progress {(double)progress / total * 100}%");
+
+            Card[] remain = Helper.RemoveCards(cards, holeCards);
+
+            // for each public cards
+            foreach (var publicCards in Helper.SelectCombinations(remain, k))
+            {
+                int holeHash = Card.HashDeck(holeCards);
+                int publicHash = Card.HashDeck(publicCards);
+
+                if (cached.ContainsKey((holeHash, publicHash)))
+                    continue;
+
+                // compute equity distribution
+                EmdCluster distribution = ComputeEquityDistribution(holeCards, publicCards, samples, bins);
+                clusters.Add(distribution);
+                cached.Add((holeHash, publicHash), distribution);
+            }
+        }
+
+        Console.WriteLine();
+
+        return clusters;
+    }
+
+    /// <summary>
+    /// Create private clusters
+    /// </summary>
+    /// <param name="points"></param>
+    /// <param name="clusters"></param>
+    /// <param name="iters"></param>
+    /// <returns></returns>
+    public static Dictionary<int, List<EmdCluster>> ClusterPrivatePoints(
+        List<EmdCluster> points,
+        int clusters,
+        int iters
+    )
+    {
+        return KMeans(points, clusters, iters);
+    }
+
+    #endregion
+
+    #region Public
+
+    public static List<EmdCluster> MakePublicClusterPoints(
+        Dictionary<int, List<EmdCluster>> preflopClusters,
+        int k, int clusterSamples, int equitySamples
+    )
+    {
+        List<EmdCluster> publicCluster = [];
+        Dictionary<int, EmdCluster> cached = new Dictionary<int, EmdCluster>();
+
+        // all combinations of size k
+        int count = 0;
+        long total = Helper.Choose(52, k);
+        foreach (var selected in Helper.SelectCombinations(Card.AllCards(), k))
+        {
+            count += 1;
+            Console.Write($"\r{k}th Street, Progress {(double)count / total * 100}%");
+
+            int hash = Card.HashDeck(selected);
+            if (cached.ContainsKey(hash))
+                continue;
+
+            // iterate over all private clusters
+            double[] histogram = new double[preflopClusters.Count];
+
+            // sample hole cards
+            foreach (var privateCluster in preflopClusters)
+            {
+                double equity = 0.0;
+
+                // sample from private cluster
+                for (int t = 0; t < clusterSamples; ++t)
+                {
+                    var cluster = privateCluster.Value[Random.Shared.Next(privateCluster.Value.Count)];
+                    equity += ComputeEquity(
+                        cluster.Hole!,
+                        selected,
+                        equitySamples,
+                        equitySamples
+                    );
+                }
+
+                histogram[privateCluster.Key] = equity / clusterSamples;
+            }
+
+            EmdCluster newCluster = new EmdCluster()
+            {
+                EquityDistribution = histogram,
+                Hole = null,
+                Visible = selected
+            };
+            publicCluster.Add(newCluster);
+            cached.Add(hash, newCluster);
+        }
+
+        Console.WriteLine();
+
+        return publicCluster;
+    }
+
+    public static Dictionary<int, List<EmdCluster>> ClusterPublicPoints(
+        List<EmdCluster> points,
+        int clusters,
+        int iterations
+    )
+    {
+        return KMeans(points, clusters, iterations);
+    }
+
+    #endregion
 
     #region Private Hole Clusters
 
@@ -171,7 +427,7 @@ public class EmdCluster
                 }
                 else
                 {
-                    EmdCluster cluster = ComputeCluster(
+                    EmdCluster cluster = ComputeEquityDistribution(
                         hole,
                         [],
                         samples,
@@ -200,7 +456,6 @@ public class EmdCluster
         int clusters = 20)
     {
         // use k mean clustering
-
         int bins = points[0].EquityDistribution.Length;
         EmdCluster[] centroids = new EmdCluster[clusters];
         for (int i = 0; i < clusters; ++i)
@@ -344,7 +599,7 @@ public class EmdCluster
         Card[] cards = Card.AllCards();
 
         // iterate over all streets
-        foreach (var k in (int[]) [0, 3, 4, 5])
+        foreach (var k in (int[])[0, 3, 4, 5])
         {
             Dictionary<int, EmdCluster> cached = new Dictionary<int, EmdCluster>();
 
@@ -429,7 +684,7 @@ public class EmdCluster
         Card[] cards = Card.AllCards();
 
         // iterate over all streets
-        foreach (var k in (int[]) [0, 3, 4, 5])
+        foreach (var k in (int[])[0, 3, 4, 5])
         {
             Dictionary<int, EmdCluster> cache = new Dictionary<int, EmdCluster>();
             foreach (var cluster in points)
