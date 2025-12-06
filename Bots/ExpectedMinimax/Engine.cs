@@ -18,9 +18,7 @@ public class Engine
         double equity = Equity.ComputeEquity(abstractGame.GetState().Hand, abstractGame.GetState().River, 50);
 
         List<Action> actions = [];
-        var ev = PreChanceNegamax(abstractGame, actions, player, equity, -1e9, 1e9, 100);
-        // Console.WriteLine($"{equity}/{ev}");
-        
+        PreChanceNegamax(abstractGame, actions, player, equity, -1e9, 1e9, 100);
         var action = actions[0];
         return AbstractGame.AbstractToReal(action, realActions);
     }

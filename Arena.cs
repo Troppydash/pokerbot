@@ -69,7 +69,7 @@ public class Arena
     /// <param name="iters">Number of games</param>
     /// <param name="verbose">Whether to display the poker game states</param>
     /// <returns>Average pnl for both agents</returns>
-    public static int[] SimulateAll(List<IAgent> agents, int seed = 42, int iters = 1000, bool verbose = true)
+    public static int[] SimulateAll(List<IAgent> agents, int seed = 42, int iters = 1000, bool verbose = false)
     {
         int[] scores = [0, 0];
 
@@ -84,13 +84,13 @@ public class Arena
             int[] result = arena.Simulate(s, verbose);
             scores[0] += result[0];
             scores[1] += result[1];
-            winnings.Add(result[0]);
+            winnings.Add((double)result[0] / Game.BbAmount);
 
             arena = new Arena([agents[1], agents[0]]);
             result = arena.Simulate(s, verbose);
             scores[0] += result[1];
             scores[1] += result[0];
-            winnings.Add(result[1]);
+            winnings.Add((double)result[1] / Game.BbAmount);
 
             double avg = 0.0;
             foreach (var win in winnings)
@@ -108,7 +108,8 @@ public class Arena
 
             std = Math.Sqrt(std / winnings.Count);
             double se = std / Math.Sqrt(winnings.Count);
-            Console.WriteLine($"(Round {i}) Player 0 E[Profit]={avg:0.00}, 95%-CI=[{avg - 1.96 * se:0.00}-{avg + 1.96 * se:0.00}]");
+            Console.WriteLine(
+                $"(Round {i}) Player 0 E[Profit] = {avg:0.00}BB, 95%-CI = [ {avg - 1.96 * se:0.00}BB, {avg + 1.96 * se:0.00}BB ]");
         }
 
         return scores;
