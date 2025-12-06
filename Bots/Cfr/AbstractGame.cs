@@ -2,7 +2,7 @@ namespace PokerBot.Bots.Cfr;
 
 public class AbstractGame : Game
 {
-    public const int Depth = 3;
+    public const int Depth = 100;
 
     private List<Action> _abstractHistory;
 
@@ -22,13 +22,21 @@ public class AbstractGame : Game
     public static AbstractGame FromState(State state)
     {
         List<Action> abstractHistory = [];
-        foreach (var action in state.History.TakeLast(3))
+        foreach (var action in state.History.TakeLast(Depth))
         {
             abstractHistory.Add(RealToAbstract(action, ValidActions));
         }
 
         Card[] hand = new Card[Card.NumberRanks * Card.NumberSuits];
         state.Hand.CopyTo(hand, state.Index == 0 ? Game.SbHandOffset : Game.BbHandOffset);
+
+        // fake other hand
+        Card[] other = Helper.SelectRemain(
+            Helper.RemoveCards(Card.AllCards(), state.Hand.Concat(state.River).ToArray()),
+            2
+        );
+        other.CopyTo(hand, state.Index == 0 ? Game.BbHandOffset : Game.SbHandOffset);
+
         state.River.CopyTo(hand, Game.RiverHandOffset);
         return new AbstractGame(
             hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, 0, state.Checked,
@@ -126,9 +134,12 @@ public class AbstractGame : Game
     [
         Action.Fold(10),
         Action.Raise(10, 10, Action.CheckFlag),
+        Action.Raise(10, 1, 0),
         Action.Raise(10, 3, 0),
+        Action.Raise(10, 6, 0),
         Action.Raise(10, 10, 0),
         Action.Raise(10, 20, 0),
+        Action.Raise(10, 50, 0),
         Action.Raise(10, 100, Action.AllinFlag),
     ];
 

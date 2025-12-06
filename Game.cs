@@ -586,7 +586,7 @@ public class Game
     }
 
     // rule constants
-    public const int AllInAmount = 1000;
+    public const int AllInAmount = 4000;
     public const int BbAmount = 20;
 
     // player indices
@@ -812,7 +812,11 @@ public class Game
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
 
-
+    public bool IsOver()
+    {
+        return _riverCards == 6 || _history.Count > 0 && _history.Last().IsFold();
+    }
+    
     /// <summary>
     /// Get utility for game, null if not finished
     /// </summary>
