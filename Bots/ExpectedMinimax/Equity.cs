@@ -1,7 +1,6 @@
-using PokerBot.Bots.Cfr;
 using PokerBot.Bots.Shared;
 
-namespace PokerBot.Bots;
+namespace PokerBot.Bots.ExpectedMinimax;
 
 public class Equity
 {

@@ -1,5 +1,6 @@
 ﻿using PokerBot.Bots;
 using PokerBot.Bots.Cfr;
+using PokerBot.Bots.ExpectedMinimax;
 
 namespace PokerBot;
 

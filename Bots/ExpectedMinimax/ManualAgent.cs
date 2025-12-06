@@ -1,4 +1,4 @@
-namespace PokerBot.Bots;
+namespace PokerBot.Bots.ExpectedMinimax;
 
 public class ManualAgent : IAgent
 {
