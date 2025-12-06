@@ -1,5 +1,8 @@
-namespace PokerBot.Bots.Cfr;
+using PokerBot.Attributes;
 
+namespace PokerBot.Bots.Shared;
+
+[Untested]
 public class Helper
 {
     public static long Choose(int n, int k)

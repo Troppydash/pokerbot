@@ -1,7 +1,9 @@
 using System.Text.Json;
+using PokerBot.Attributes;
 
-namespace PokerBot.Bots;
+namespace PokerBot.Bots.Shared;
 
+[Stable]
 public class FileCache
 {
     public static T OptionalCompute<T>(string path, Func<T> compute)

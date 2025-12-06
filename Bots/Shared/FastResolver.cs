@@ -1,8 +1,9 @@
 using System.Numerics;
-using PokerBot.Bots.Cfr;
+using PokerBot.Attributes;
 
-namespace PokerBot.Bots;
+namespace PokerBot.Bots.Shared;
 
+[Untested]
 public class FastResolver
 {
     // card value constants
@@ -72,6 +73,7 @@ public class FastResolver
         throw new Exception("unparsable value");
     }
 
+    [BrokenDontUse]
     public class Cached
     {
         private static Cached? _instance = null;

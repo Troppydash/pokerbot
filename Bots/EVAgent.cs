@@ -1,4 +1,5 @@
 using PokerBot.Attributes;
+using PokerBot.Bots.Shared;
 
 namespace PokerBot.Bots;
 

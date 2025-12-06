@@ -1,4 +1,5 @@
 using PokerBot.Bots.Cfr;
+using PokerBot.Bots.Shared;
 
 namespace PokerBot.Bots;
 
