@@ -940,7 +940,6 @@ public class Game
     /// </summary>
     public void Display()
     {
-        Console.WriteLine("==== Game ====");
         string sep = ", ";
         Console.WriteLine($"turn {_turn}, #public {_riverCards}");
         Console.WriteLine($"pot {_pot}, raise {_raise}, incre {_lastIncrement}");
@@ -957,7 +956,7 @@ public class Game
                 _hands.Skip(SbHandOffset).Take(2).ToArray(),
                 _hands.Skip(BbHandOffset).Take(2).ToArray());
 
-            Console.WriteLine($"Finished.");
+            Console.WriteLine($"Game Finished.");
             Console.WriteLine(
                 $"sb: {HandResolver.ParseValue(values[PlayerSb])}/{values[PlayerSb]}, utility {util[PlayerSb]}");
             Console.WriteLine(

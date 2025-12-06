@@ -10,7 +10,7 @@ public class Arena
     /// </summary>
     private List<IAgent> _agents;
 
-    public Arena(List<IAgent> agents)
+    private Arena(List<IAgent> agents)
     {
         _agents = agents;
     }
@@ -21,7 +21,7 @@ public class Arena
     /// <param name="seed">Shuffle seed</param>
     /// <param name="verbose">Print game states and actions</param>
     /// <returns></returns>
-    public int[] Simulate(int seed, bool verbose = true)
+    private int[] Simulate(int seed, bool verbose = true)
     {
         foreach (var agent in _agents)
         {
@@ -34,22 +34,80 @@ public class Arena
         {
             if (verbose)
             {
+                Console.WriteLine("[Game State]");
                 game.Display();
+                Console.WriteLine("[Game State Over]");
             }
-            
+
+            string player = game.GetTurn() == 0 ? "SB" : "BB";
             Action action = _agents[game.GetTurn()].Play(game.GetState(), game.GetActions());
             game.Play(action);
 
             if (verbose)
             {
-                Console.WriteLine($"\nPlayed: {action}\n");
+                Console.WriteLine($"(Action) Player {player} played: {action}\n");
             }
         }
 
         if (verbose)
         {
+            Console.WriteLine("[Game State]");
             game.Display();
+            Console.WriteLine("[Game State Over]\n");
         }
+
         return game.Utility()!;
+    }
+
+    /// <summary>
+    /// Simulate multiple games of 1v1s, displays the average pnl and 95CI in stdout
+    /// </summary>
+    /// <param name="agents">Agents</param>
+    /// <param name="iters">Number of games</param>
+    /// <param name="verbose">Whether to display the poker game states</param>
+    /// <returns>Average pnl for both agents</returns>
+    public static int[] SimulateAll(List<IAgent> agents, int seed = 42, int iters = 1000, bool verbose = true)
+    {
+        int[] scores = [0, 0];
+
+        Random rng = new Random(seed);
+        List<double> winnings = [];
+        for (int i = 0; i < iters; ++i)
+        {
+            Console.WriteLine($"\n~~~~ Simulating Round {i} ~~~~");
+            int s = rng.Next();
+
+            Arena arena = new Arena([agents[0], agents[1]]);
+            int[] result = arena.Simulate(s, verbose);
+            scores[0] += result[0];
+            scores[1] += result[1];
+            winnings.Add(result[0]);
+
+            arena = new Arena([agents[1], agents[0]]);
+            result = arena.Simulate(s, verbose);
+            scores[0] += result[1];
+            scores[1] += result[0];
+            winnings.Add(result[1]);
+
+            double avg = 0.0;
+            foreach (var win in winnings)
+            {
+                avg += win;
+            }
+
+            avg /= winnings.Count;
+
+            double std = 0.0;
+            foreach (var win in winnings)
+            {
+                std += (win - avg) * (win - avg);
+            }
+
+            std = Math.Sqrt(std / winnings.Count);
+            double se = std / Math.Sqrt(winnings.Count);
+            Console.WriteLine($"(Round {i}) Player 0 E[Profit]={avg:0.00}, 95%-CI=[{avg - 1.96 * se:0.00}-{avg + 1.96 * se:0.00}]");
+        }
+
+        return scores;
     }
 }
