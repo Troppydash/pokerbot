@@ -1,15 +1,22 @@
+using PokerBot.Attributes;
+
 namespace PokerBot.Bots;
 
 /// <summary>
 /// EV strategy agent
 /// </summary>
+[Stable]
 public class EvAgent : IAgent
 {
     private bool _verbose;
+    private int _equityIterations;
+    private Random _rng;
 
-    public EvAgent(bool verbose)
+    public EvAgent(int equityIterations = 1000, int seed = 42, bool verbose = false)
     {
         this._verbose = verbose;
+        _equityIterations = equityIterations;
+        _rng = new Random(seed);
     }
 
     public void Reset()
@@ -33,13 +40,13 @@ public class EvAgent : IAgent
         }
 
         // simulate rolls
-        int n = 100000;
+        int n = _equityIterations;
         double wins = 0;
         Card[] rolls = cards.GetRange(0, cards.Count).ToArray();
 
         for (int i = 0; i < n; ++i)
         {
-            Random.Shared.Shuffle(rolls);
+            _rng.Shuffle(rolls);
 
             Card[] pOther = rolls.Take(2).ToArray();
             Card[] fullRiver = rolls.Skip(2).Take(5 - state.River.Length).ToArray();
@@ -103,7 +110,7 @@ public class EvAgent : IAgent
 
         // bluff with chance
         double chance = 0.2;
-        if (ev >= -20 && Random.Shared.NextDouble() < chance)
+        if (ev >= -20 && _rng.NextDouble() < chance)
         {
             // 2nd is always check
             return actions[1];

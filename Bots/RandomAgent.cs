@@ -1,9 +1,12 @@
+using PokerBot.Attributes;
+
 namespace PokerBot.Bots;
 
 /// <summary>
 /// Random agent that never all-ins or folds
 /// </summary>
-public class RandomAgent : IAgent
+[Stable]
+public class AllRandomAgent : IAgent
 {
     public void Reset()
     {
@@ -18,7 +21,8 @@ public class RandomAgent : IAgent
 /// <summary>
 /// Random agent that raises by a max amount
 /// </summary>
-public class RandomAgent2 : IAgent
+[Stable]
+public class StableRandomAgent : IAgent
 {
     public void Reset()
     {
@@ -30,11 +34,11 @@ public class RandomAgent2 : IAgent
     }
 }
 
-
 /// <summary>
 /// Yolo
 /// </summary>
-public class RandomAgentYolo : IAgent
+[Stable]
+public class YoloAgent : IAgent
 {
     public void Reset()
     {
@@ -45,4 +49,3 @@ public class RandomAgentYolo : IAgent
         return actions.Last();
     }
 }
-

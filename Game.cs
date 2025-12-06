@@ -79,6 +79,7 @@ public class Card
     /// </summary>
     /// <param name="count">Number of cards</param>
     /// <returns>Highest hash</returns>
+    [BrokenDontUse]
     public static long MaxHashDeck(int count)
     {
         long hash = 1;
