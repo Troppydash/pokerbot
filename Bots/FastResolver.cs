@@ -1,4 +1,5 @@
 using System.Numerics;
+using PokerBot.Bots.Cfr;
 
 namespace PokerBot.Bots;
 
@@ -70,6 +71,213 @@ public class FastResolver
 
         throw new Exception("unparsable value");
     }
+
+    public class Cached
+    {
+        private static Cached? _instance = null;
+        private Dictionary<long, int> _5handLookup;
+        private Dictionary<long, int> _7handLookup;
+
+        public const string FIVE_FILE = "fastResolverCache5Hand.json";
+        public const string SEVEN_FILE = "fastResolverCache7Hand.json";
+
+        public static Cached GetInstance()
+        {
+            if (_instance == null)
+            {
+                _instance = new Cached();
+            }
+
+            return _instance;
+        }
+
+        private Cached()
+        {
+            // build cache table
+
+            // build 5 hand lookup
+            _5handLookup = FileCache.OptionalCompute(
+                FIVE_FILE,
+                () =>
+                {
+                    Console.WriteLine("Building 5 hand");
+                    var lookup = new Dictionary<long, int>();
+                    foreach (var hands in Helper.SelectCombinations(Card.AllCards(), 5))
+                    {
+                        long hash = Card.HashDeck(hands);
+                        if (lookup.ContainsKey(hash))
+                            continue;
+
+                        lookup.Add(hash, GetValue5Sorted(hands.OrderBy(c => c.Rank).ToArray()));
+                    }
+
+                    return lookup;
+                });
+
+            // build 7 hand lookup
+            _7handLookup = FileCache.OptionalCompute(
+                SEVEN_FILE,
+                () =>
+                {
+                    Console.WriteLine("Building 7 hand");
+                    var lookup = new Dictionary<long, int>();
+                    int count = 0;
+                    foreach (var hands in Helper.SelectCombinations(Card.AllCards(), 7))
+                    {
+                        count += 1;
+                        long hash = Card.HashDeck(hands);
+                        if (lookup.ContainsKey(hash))
+                            continue;
+
+                        Console.WriteLine($"Progress {(double)count / 133784560 * 100}%");
+
+                        int bestValue = 0;
+                        foreach (var selected in Helper.SelectCombinations(hands, 5))
+                        {
+                            long h = Card.HashDeck(selected);
+                            bestValue = int.Max(bestValue, _5handLookup[h]);
+                        }
+
+                        lookup.Add(hash, bestValue);
+                    }
+
+                    return lookup;
+                });
+        }
+
+        private static int GetValue5Sorted(Card[] selected)
+        {
+            int[] rankFrequency = new int[Card.NumberRanks];
+            int[,] frequencyRank = new int[NumberMatch + 1, 2];
+
+            bool isStraight = true;
+            for (int i = 1; i < NumberMatch; ++i)
+            {
+                if (selected[i].Rank != selected[i - 1].Rank + 1)
+                {
+                    isStraight = false;
+                    break;
+                }
+            }
+
+            bool isFlush = true;
+            for (int i = 1; i < NumberMatch; ++i)
+            {
+                if (selected[i].Suit != selected[0].Suit)
+                {
+                    isFlush = false;
+                    break;
+                }
+            }
+
+            // rank to frequency
+            foreach (var card in selected)
+            {
+                rankFrequency[card.Rank] += 1;
+            }
+
+            // frequency to ranks
+            for (int i = 0; i < rankFrequency.Length; ++i)
+            {
+                frequencyRank[rankFrequency[i], 1] = frequencyRank[rankFrequency[i], 0];
+                frequencyRank[rankFrequency[i], 0] = i;
+            }
+
+            int bestValue = 0;
+
+            // royal flush and straight flush
+            if (isStraight && isFlush)
+            {
+                int topRank = selected.Last().Rank;
+                if (topRank == Card.NumberRanks - 1)
+                {
+                    return RoyalFlush;
+                }
+
+                return StraightFlush + topRank;
+            }
+
+
+            // four kind
+            if (frequencyRank[4, 0] >= 0)
+            {
+                return FourKind + frequencyRank[4, 0];
+            }
+
+            // full house
+            if (frequencyRank[3, 0] >= 0 && frequencyRank[2, 0] >= 0)
+            {
+                return FullHouse + frequencyRank[3, 0] * Card.NumberRanks + frequencyRank[2, 0];
+            }
+
+            // flush
+            if (isFlush)
+            {
+                int topRank = selected.Last().Rank;
+                return Flush + topRank;
+            }
+
+            // straight
+            if (isStraight)
+            {
+                int topRank = selected.Last().Rank;
+                return Straight + topRank;
+            }
+
+
+            // three kind
+            if (frequencyRank[3, 0] >= 0)
+            {
+                return ThreeKind + frequencyRank[3, 0];
+            }
+
+            // two pair
+            if (frequencyRank[2, 0] >= 0 && frequencyRank[2, 1] >= 0)
+            {
+                return TwoPair + frequencyRank[2, 0] * Card.NumberRanks +
+                       frequencyRank[2, 1];
+            }
+
+            // pair
+            if (frequencyRank[2, 0] >= 0)
+            {
+                return Pair + frequencyRank[2, 0];
+            }
+
+            // high card
+            return HighCard + selected.Last().Rank;
+        }
+
+        public int CompareHands(Card[] river, Card[] p0, Card[] p1)
+        {
+            int highCard0 = int.Max(p0[0].Rank, p0[1].Rank);
+            int lowCard0 = int.Min(p0[0].Rank, p0[1].Rank);
+            int highCard1 = int.Max(p1[0].Rank, p1[1].Rank);
+            int lowCard1 = int.Min(p1[0].Rank, p1[1].Rank);
+            int high0 = highCard0 * Card.NumberRanks + lowCard0;
+            int high1 = highCard1 * Card.NumberRanks + lowCard1;
+
+            Card[] cards = new Card[NumberCards];
+            river.CopyTo(cards, 0);
+            p0.CopyTo(cards, 5);
+            int value0 = _7handLookup[Card.HashDeck(cards)] * Base + high0;
+            p1.CopyTo(cards, 5);
+            int value1 = _7handLookup[Card.HashDeck(cards)] * Base + high1;
+
+            if (value0 == value1)
+            {
+                return Equal;
+            }
+
+            if (value0 < value1)
+            {
+                return Player1;
+            }
+
+            return Player0;
+        }
+    }
+
 
     /// <summary>
     /// Get the best matching value out of 7 cards

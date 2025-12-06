@@ -22,3 +22,17 @@ Information set
     - Fold, Check, All-in
     - Raise 30%, 100%, 200% pot
     - Max length of 4 (folding or checking after 3)
+
+Clustering
+- Private Cluster
+    - Variants: preflop, flop, turn, river
+    - Grouped by equity distribution
+- Public Cluster
+    - Variants: preflop, flop, turn, river
+    - Grouped by equity histogram
+    
+    
+TODO
+- run private and public cluster algo
+- remake info set
+- run cfr algo

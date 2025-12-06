@@ -73,9 +73,9 @@ public class Card
     /// </summary>
     /// <param name="count">Number of cards</param>
     /// <returns>Highest hash</returns>
-    public static int MaxHashDeck(int count)
+    public static long MaxHashDeck(int count)
     {
-        int hash = 1;
+        long hash = 1;
         for (int i = 0; i < count; ++i)
         {
             hash *= NumberRanks * NumberSuits;
@@ -90,16 +90,16 @@ public class Card
     /// <param name="deck">A list of cards</param>
     /// <returns>Unique hash</returns>
     /// <exception cref="Exception">If the hash is not unique (number too large)</exception>
-    public static int HashDeck(Card[] deck)
+    public static long HashDeck(Card[] deck)
     {
         // sort by rank
-        Card[] sorted = deck.OrderBy(card => card.Rank).ToArray();
+        Card[] sorted = deck.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
 
         // suitMapping[suit] = newSuit
         int nextSuit = 0;
         int[] suitMapping = [-1, -1, -1, -1];
 
-        int hash = 0;
+        long hash = 0;
         foreach (var card in sorted)
         {
             if (suitMapping[card.Suit] == -1)
@@ -109,7 +109,36 @@ public class Card
             }
 
             hash = (hash * (NumberRanks * NumberSuits)) + suitMapping[card.Suit] * NumberRanks + card.Rank;
-            if (hash > 1 << 30)
+            if (hash > 1L << 60)
+            {
+                throw new Exception("int overflow");
+            }
+        }
+
+        return hash;
+    }
+    
+    public static long HashDeck7(Card[] hole, Card[] river)
+    {
+        // sort by rank
+        Card[] sorted = hole.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
+        sorted = sorted.Concat(river.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray()).ToArray();
+        
+        // suitMapping[suit] = newSuit
+        int nextSuit = 0;
+        int[] suitMapping = [-1, -1, -1, -1];
+
+        long hash = 0;
+        foreach (var card in sorted)
+        {
+            if (suitMapping[card.Suit] == -1)
+            {
+                suitMapping[card.Suit] = nextSuit;
+                nextSuit += 1;
+            }
+
+            hash = (hash * (NumberRanks * NumberSuits)) + suitMapping[card.Suit] * NumberRanks + card.Rank;
+            if (hash > 1L << 61)
             {
                 throw new Exception("int overflow");
             }
@@ -125,8 +154,9 @@ public class Card
 public class Action
 {
     public const int FoldFlag = 1;
-    public const int AllinFlag = 2;
-    public const int CheckFlag = 4;
+    // CALL and CHECK
+    public const int CheckFlag = 2;
+    public const int AllinFlag = 4;
 
     /// If zero, a check.
     /// Otherwise, a call/raise
@@ -556,7 +586,7 @@ public class Game
     }
 
     // rule constants
-    public const int AllInAmount = 4000;
+    public const int AllInAmount = 1000;
     public const int BbAmount = 20;
 
     // player indices
@@ -759,7 +789,6 @@ public class Game
 
         // add raise
         int increment = _lastIncrement == 0 ? BbAmount : _lastIncrement;
-        int lastAmount = 0;
         while (true)
         {
             int amount = _raise + increment - _raised[_turn];
@@ -767,7 +796,6 @@ public class Game
                 break;
 
             actions.Add(Action.Raise(_pot, amount, 0));
-            lastAmount = amount;
             increment += BbAmount;
         }
 
@@ -832,8 +860,6 @@ public class Game
     {
         _history.Add(action);
         _streetHistory.Add(action);
-        // if (abstractAction != null)
-        //     _abstractStreetHistory.Add(abstractAction);
 
         // do nothing on fold
         if (action.IsFold())
@@ -892,7 +918,6 @@ public class Game
                 _raise = 0;
                 _lastIncrement = 0;
                 _streetHistory = [];
-                // _abstractStreetHistory = [];
             }
             else
             {

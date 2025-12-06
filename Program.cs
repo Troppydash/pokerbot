@@ -32,18 +32,25 @@ public class Program
         return scores;
     }
 
-    public static void Main()
+    static void Solve()
     {
         Infoset set = Infoset.FromClusters(false);
         Solver solver = new Solver(set);
-        solver.Simulate(100000, 42);
+        solver.Simulate(1000000, 40);
+    }
 
+    public static void Main()
+    {
+        // TODO: simulate bot
+        Solve();
 
-        // Arena arena = new Arena([new RandomAgent2(), new RandomAgent2()]);
-        // arena.Simulate(55);
-
-        // int n = 1000;
-        // var result = SimulateAll([new EvAgent(false), new EvAgent(false)], n, false);
+        // Infoset set = Infoset.FromClusters(false);
+        // CfrAgent agent = new CfrAgent(set, Solver.Result.Load("result3.json", set));
+        // int n = 100000;
+        // var result = SimulateAll([new EvAgent(false), agent], n, true);
+        //
+        //
+        
         // Console.WriteLine($"player 0 average utility {(float)result[0] / (2*n)}, player 1 average utility {(float)result[1] / (2*n)}");
         // Card[] cards = Card.AllCards();
         // var dist = EMDCluster.ComputeEquityDistribution(
