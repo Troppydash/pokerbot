@@ -1,19 +1,25 @@
 using System.Numerics;
+using PokerBot.Attributes;
 
 namespace PokerBot;
 
 /// <summary>
 /// A poker card
 /// </summary>
+[Stable]
 public class Card
 {
     public const int NumberSuits = 4;
     public const int NumberRanks = 13;
 
-    // card suit 0-3
+    /// <summary>
+    /// Card Suit, 0-3
+    /// </summary>
     public int Suit { get; }
 
-    // card rank 0-12
+    /// <summary>
+    /// Card Rank, 0-12, Ace is 12, two is 0
+    /// </summary>
     public int Rank { get; }
 
     public Card(int suit, int rank)
@@ -85,11 +91,12 @@ public class Card
     }
 
     /// <summary>
-    /// Compute the perfect unique hash (within the same card numbers) for a number of cards 
+    /// Compute the perfect unique hash (within the same card numbers) for a number of cards
     /// </summary>
     /// <param name="deck">A list of cards</param>
     /// <returns>Unique hash</returns>
     /// <exception cref="Exception">If the hash is not unique (number too large)</exception>
+    [BrokenDontUse]
     public static long HashDeck(Card[] deck)
     {
         // sort by rank
@@ -117,13 +124,14 @@ public class Card
 
         return hash;
     }
-    
+
+    [BrokenDontUse]
     public static long HashDeck7(Card[] hole, Card[] river)
     {
         // sort by rank
         Card[] sorted = hole.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray();
         sorted = sorted.Concat(river.OrderBy(card => card.Rank * NumberSuits + card.Suit).ToArray()).ToArray();
-        
+
         // suitMapping[suit] = newSuit
         int nextSuit = 0;
         int[] suitMapping = [-1, -1, -1, -1];
@@ -151,9 +159,11 @@ public class Card
 /// <summary>
 /// A player action in poker
 /// </summary>
+[Stable]
 public class Action
 {
     public const int FoldFlag = 1;
+
     // CALL and CHECK
     public const int CheckFlag = 2;
     public const int AllinFlag = 4;
@@ -214,7 +224,22 @@ public class Action
 
     public override string ToString()
     {
-        return IsFold() ? "Fold" : $"Raise {Amount}";
+        if (IsFold())
+        {
+            return "(Fold)";
+        }
+
+        if (IsCheck())
+        {
+            return $"(Check {Amount}/{Pot})";
+        }
+
+        if (IsAllin())
+        {
+            return $"(All-in {Amount}/{Pot})";
+        }
+
+        return $"(Raise {Amount}/{Pot})";
     }
 
     /// <summary>
@@ -247,6 +272,7 @@ public class Action
 /// <summary>
 /// Hand comparison handler
 /// </summary>
+[Stable]
 public static class HandResolver
 {
     // card value constants
@@ -499,11 +525,16 @@ public static class HandResolver
     }
 }
 
+/// <summary>
+/// Poker Game
+/// </summary>
+[Stable]
 public class Game
 {
     /// <summary>
     /// Agent accessible state
     /// </summary>
+    [Stable]
     public class State
     {
         /// <summary>
@@ -541,6 +572,9 @@ public class Game
         /// </summary>
         public readonly int Pot;
 
+        /// <summary>
+        /// The last raise increment in this street
+        /// </summary>
         public readonly int LastIncrement;
 
         /// <summary>
@@ -599,7 +633,7 @@ public class Game
     public const int RiverHandOffset = 4;
 
     /// <summary>
-    /// chance sampling cards
+    /// Chance sampling cards, format is [..Sbhand, ..Bbhand, ..Riverhand, rest]
     /// </summary>
     protected Card[] _hands;
 
@@ -653,11 +687,6 @@ public class Game
     /// </summary>
     protected List<Action> _streetHistory;
 
-    // /// <summary>
-    // /// Custom abstracted street history
-    // /// </summary>
-    // private List<Action> _abstractStreetHistory;
-
     /// <summary>
     /// Create a new game
     /// </summary>
@@ -673,7 +702,6 @@ public class Game
         _riverCards = 0;
         _history = new List<Action>();
         _streetHistory = new List<Action>();
-        // _abstractStreetHistory = new List<Action>();
 
         // setup
         _money[PlayerSb] -= BbAmount / 2;
@@ -699,7 +727,6 @@ public class Game
         _riverCards = riverCards;
         _history = history;
         _streetHistory = streetHistory;
-        // _abstractStreetHistory = abstractStreetHistory;
     }
 
     /// <summary>
@@ -720,12 +747,11 @@ public class Game
             _riverCards,
             [.._history],
             [.._streetHistory]
-            // [.._abstractStreetHistory]
         );
     }
 
     /// <summary>
-    /// Shuffle game
+    /// Shuffle game, required for a random game
     /// </summary>
     /// <param name="seed"></param>
     public void Shuffle(int seed)
@@ -734,6 +760,12 @@ public class Game
         rng.Shuffle(_hands);
     }
 
+    /// <summary>
+    /// Directly set the game cards
+    /// </summary>
+    /// <param name="sbHole"></param>
+    /// <param name="bbHole"></param>
+    /// <param name="visible"></param>
     public void Seed(Card[] sbHole, Card[] bbHole, Card[] visible)
     {
         for (int i = 0; i < 2; ++i)
@@ -805,6 +837,10 @@ public class Game
         return actions;
     }
 
+    /// <summary>
+    /// Get the one-sided state of the game for the current playing player. Ensures no information is leaked
+    /// </summary>
+    /// <returns>Current player perspective state</returns>
     public virtual State GetState()
     {
         return new State(_turn, _riverCards, _raise, _raised, _checked, _money, _pot,
@@ -812,11 +848,15 @@ public class Game
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
     }
 
+    /// <summary>
+    /// Returns if the game is over
+    /// </summary>
+    /// <returns></returns>
     public bool IsOver()
     {
         return _riverCards == 6 || _history.Count > 0 && _history.Last().IsFold();
     }
-    
+
     /// <summary>
     /// Get utility for game, null if not finished
     /// </summary>

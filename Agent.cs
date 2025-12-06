@@ -1,8 +1,11 @@
+using PokerBot.Attributes;
+
 namespace PokerBot;
 
 /// <summary>
 /// Agent bot interface
 /// </summary>
+[Stable]
 public interface IAgent
 {
     /// <summary>

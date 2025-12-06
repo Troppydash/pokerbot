@@ -1,8 +1,11 @@
+using PokerBot.Attributes;
+
 namespace PokerBot;
 
 /// <summary>
 /// Agent simulation arena
 /// </summary>
+[Stable]
 public class Arena
 {
     /// <summary>
