@@ -26,7 +26,7 @@ public class Engine
     private double UtilityFunc(double x)
     {
         x /= Game.BbAmount;
-        double lambda = 0.001;
+        double lambda = 0.000;
         return x - lambda / 2 * x * x;
     }
 
@@ -114,4 +114,6 @@ public class Engine
 
         return best;
     }
+    
+    // TODO: use full actions
 }
