@@ -20,6 +20,11 @@ public class EvAgent : IAgent
         _rng = new Random(seed);
     }
 
+    public string Name()
+    {
+        return "EVAgent";
+    }
+
     public void Reset()
     {
     }

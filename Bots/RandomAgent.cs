@@ -8,6 +8,11 @@ namespace PokerBot.Bots;
 [Stable]
 public class AllRandomAgent : IAgent
 {
+    public string Name()
+    {
+        return "AllRandomAgent";
+    }
+
     public void Reset()
     {
     }
@@ -24,6 +29,11 @@ public class AllRandomAgent : IAgent
 [Stable]
 public class StableRandomAgent : IAgent
 {
+    public string Name()
+    {
+        return "StableRandomAgent";
+    }
+
     public void Reset()
     {
     }
@@ -40,6 +50,11 @@ public class StableRandomAgent : IAgent
 [Stable]
 public class YoloAgent : IAgent
 {
+    public string Name()
+    {
+        return "YoloAgent";
+    }
+
     public void Reset()
     {
     }
