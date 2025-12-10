@@ -28,3 +28,11 @@ The `Bots` folder contains bot specific code, the `Bots/Shared` folder contains 
 - `EVAgent.cs` for a no-tree-search, equity heuristic bot
 - `Cfr` for an attempted cfr poker player (not working)
 - `ExpectedMinimax` for the Expectiminimax implementation
+
+
+### H2H Stats
+
+EVAgent against ExpectedMinimax_Abstract (100 rounds, 200 games, BB = 20, stake = 4000)
+- (Round 99) `Player 0 E[Profit] = -4.84BB, 95%-CI = [ -14.23BB, 4.55BB ]`
+
+ExpectedMinimax_Total vs ExpectedMinimax_Abstract

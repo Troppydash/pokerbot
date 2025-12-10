@@ -42,7 +42,7 @@ public class AbstractGame : Game
 
         state.River.CopyTo(hand, Game.RiverHandOffset);
         return new AbstractGame(
-            hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, 0, state.Checked,
+            hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, state.LastIncrement, state.Checked,
             state.River.Length, state.History, state.History, abstractHistory
         );
     }

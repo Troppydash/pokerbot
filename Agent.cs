@@ -8,6 +8,8 @@ namespace PokerBot;
 [Stable]
 public interface IAgent
 {
+    public string Name() => "Untitled";
+    
     /// <summary>
     /// Called on game start
     /// </summary>

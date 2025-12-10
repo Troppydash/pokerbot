@@ -268,6 +268,15 @@ public class Action
         int simplified = (int)Math.Round(percent / 10);
         return $"R{simplified}";
     }
+
+    public override int GetHashCode()
+    {
+        var hc = new HashCode();
+        hc.Add(Amount);
+        hc.Add(Pot);
+        hc.Add(Flag);
+        return hc.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -618,6 +627,29 @@ public class Game
             Hand = hand;
             History = history.GetRange(0, history.Count);
         }
+
+
+        public override int GetHashCode()
+        {
+            var hc = new HashCode();
+            hc.Add(Index);
+            hc.Add(Street);
+            hc.Add(Raise);
+            hc.Add(Raised[0]);
+            hc.Add(Raised[1]);
+            hc.Add(Checked[0]);
+            hc.Add(Checked[1]);
+            hc.Add(Money[0]);
+            hc.Add(Money[1]);
+            hc.Add(Pot);
+            hc.Add(LastIncrement);
+            foreach (var hi in History)
+            {
+                hc.Add(hi);
+            }
+
+            return hc.ToHashCode();
+        }
     }
 
     // rule constants
@@ -847,6 +879,36 @@ public class Game
         return new State(_turn, _riverCards, _raise, _raised, _checked, _money, _pot,
             _lastIncrement, _hands.Skip(RiverHandOffset).Take(int.Min(5, _riverCards)).ToArray(),
             _hands.Skip(_turn == PlayerSb ? SbHandOffset : BbHandOffset).Take(2).ToArray(), _streetHistory);
+    }
+
+    /// <summary>
+    /// Convert the one-sided state to a partial game
+    /// </summary>
+    /// <param name="state"></param>
+    /// <returns></returns>
+    public static Game FromState(State state)
+    {
+        Card[] hand = new Card[Card.NumberRanks * Card.NumberSuits];
+        state.Hand.CopyTo(hand, state.Index == 0 ? Game.SbHandOffset : Game.BbHandOffset);
+
+        // fake other hand
+        List<Card> other = [];
+        foreach (var card in Card.AllCards())
+        {
+            if (state.Hand.Contains(card) || state.River.Contains(card))
+                continue;
+            other.Add(card);
+            if (other.Count >= 2)
+                break;
+        }
+
+        other.CopyTo(hand, state.Index == 0 ? Game.BbHandOffset : Game.SbHandOffset);
+
+        state.River.CopyTo(hand, Game.RiverHandOffset);
+        return new Game(
+            hand, state.Index, state.Money, state.Pot, state.Raise, state.Raised, state.LastIncrement, state.Checked,
+            state.River.Length, state.History, state.History
+        );
     }
 
     /// <summary>

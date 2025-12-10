@@ -37,6 +37,7 @@ public class Arena
         {
             if (verbose)
             {
+                Console.WriteLine($"Turn: {_agents[game.GetTurn()].Name()}");
                 Console.WriteLine("[Game State]");
                 game.Display();
                 Console.WriteLine("[Game State Over]");
