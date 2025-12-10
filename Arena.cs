@@ -110,7 +110,9 @@ public class Arena
             std = Math.Sqrt(std / winnings.Count);
             double se = std / Math.Sqrt(winnings.Count);
             Console.WriteLine(
-                $"(Round {i}) Player 0 E[Profit] = {avg:0.00}BB, 95%-CI = [ {avg - 1.96 * se:0.00}BB, {avg + 1.96 * se:0.00}BB ]");
+                $"(Round {i}) Player {agents[0].Name()} against {agents[1].Name()}:");
+            Console.WriteLine(
+                $"    E[Profit] = {avg:0.00}BB, 95%-CI = [ {avg - 1.96 * se:0.00}BB, {avg + 1.96 * se:0.00}BB ]");
         }
 
         return scores;
